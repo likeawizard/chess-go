@@ -3,10 +3,21 @@ package board
 import (
 	"fmt"
 	"github.com/rivo/tview"
+	"os"
 	"time"
 )
 
-type BoardRender struct {
+const (
+	performanceFormat = "Time: %.0f. Evaluations per second %.0f (Cached percent %f)\n"
+)
+
+type BoardRender interface {
+	InitRender(b *Board, elapsed *time.Duration)
+	Update()
+	Run()
+}
+
+type TviewBoardRender struct {
 	b           *Board
 	elapsed     *time.Duration
 	app         *tview.Application
@@ -17,11 +28,29 @@ type BoardRender struct {
 	gridLayout  *tview.Grid
 }
 
-func New() *BoardRender {
-	return &BoardRender{}
+type SimpleAsciiRender struct {
+	b       *Board
+	elapsed *time.Duration
 }
 
-func (render *BoardRender) InitRender(b *Board, elapsed *time.Duration) *BoardRender {
+var i BoardRender = &SimpleAsciiRender{}
+
+func New() BoardRender {
+	rendererType := os.Getenv("BOARD_RENDER")
+	var renderer BoardRender
+	switch rendererType {
+	case "tview":
+		renderer = &TviewBoardRender{}
+	case "simple":
+		fallthrough
+	default:
+		renderer = &SimpleAsciiRender{}
+	}
+
+	return renderer
+}
+
+func (render *TviewBoardRender) InitRender(b *Board, elapsed *time.Duration) {
 	render.b = b
 	render.elapsed = elapsed
 	render.app = tview.NewApplication()
@@ -39,23 +68,36 @@ func (render *BoardRender) InitRender(b *Board, elapsed *time.Duration) *BoardRe
 
 	render.gridLayout.AddItem(render.boardView, 1, 0, 1, 1, 0, 100, false).
 		AddItem(render.moves, 1, 1, 1, 1, 0, 100, false)
-
-	return render
 }
 
-func (render *BoardRender) Update() *BoardRender {
+func (render *SimpleAsciiRender) InitRender(b *Board, elapsed *time.Duration) {
+	render.b = b
+	render.elapsed = elapsed
+}
+
+func (render *TviewBoardRender) Update() {
 	render.boardView.SetText(render.b.ASCIIRender())
 	render.currentFen.SetText(render.b.ExportFEN())
-	render.performance.SetText(fmt.Sprintf("Time: %.0f. Evaluations per second %.0f (Cached percent %f)\n", render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), float64(CachedEvals)/float64(Evaluations+CachedEvals)))
+	render.performance.SetText(fmt.Sprintf(performanceFormat, render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), float64(CachedEvals)/float64(Evaluations+CachedEvals)))
 	render.moves.SetText(fmt.Sprintf("%v", render.b.GetMoveList()))
 
 	render.app.Draw()
 
-	return render
 }
 
-func (render *BoardRender) Run() {
+func (render *SimpleAsciiRender) Update() {
+	fmt.Println(render.b.ExportFEN())
+
+	fmt.Println(render.b.GetMoveList()[:1])
+	fmt.Printf(performanceFormat+"\n", render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), float64(CachedEvals)/float64(Evaluations+CachedEvals))
+}
+func (render *TviewBoardRender) Run() {
 	render.app.SetRoot(render.gridLayout, true).SetFocus(render.gridLayout).Run()
+}
+
+func (render *SimpleAsciiRender) Run() {
+	fmt.Scanln()
+	return
 }
 
 func (b Board) ASCIIRender() string {

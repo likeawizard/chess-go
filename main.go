@@ -21,11 +21,12 @@ func main() {
 	depth, _ := strconv.Atoi(os.Getenv("EVALUATION_DEPTH"))
 	b1.SetTrackMoves(true)
 	board.InitEvalEngine(b1)
-	var render *board.BoardRender
+	var render board.BoardRender
 	var aimove string
 	var elapsed time.Duration
 
-	render = board.New().InitRender(b1, &elapsed)
+	render = board.New()
+	render.InitRender(b1, &elapsed)
 	go func() {
 		for {
 			start := time.Now()
@@ -38,6 +39,4 @@ func main() {
 		}
 	}()
 	render.Run()
-
-	//fmt.Scanln()
 }

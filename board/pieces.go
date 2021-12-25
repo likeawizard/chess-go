@@ -3,7 +3,6 @@ package board
 const PieceOffset = 6
 
 var Pieces = [12]string{"P", "B", "N", "R", "Q", "K", "p", "b", "n", "r", "q", "k"}
-var BackrankInit = [8]int{4, 3, 2, 5, 6, 2, 3, 4}
 var PiecesUnicode = [12]string{"\u265F", "\u265D", "\u265E", "\u265C", "\u265B", "\u265A", "\u2659", "\u2657", "\u2658", "\u2656", "\u2655", "\u2654"}
 var Sqaures = [2]string{"\u2B1B", "\u2B1C"}
 
