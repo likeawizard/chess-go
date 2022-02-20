@@ -23,77 +23,77 @@ var rootEvalNode *Line
 var wg sync.WaitGroup
 
 type Line struct {
-	position   *Board
-	parent     *Line
-	candidates *[]Line
+	Position   *Board
+	Parent     *Line
+	Candidates []*Line
 }
 
 func InitEvalEngine(b *Board) {
 	rootEvalNode = &Line{
-		position: b,
+		Position: b,
 	}
 	DEBUG, _ = strconv.ParseBool(os.Getenv("EVALUATION_DEBUG"))
 }
 
-func (l Line) GetEval() float64 {
-	return l.position.GetEvaluation()
+func (l *Line) GetEval() float64 {
+	return l.Position.GetEvaluation()
 }
 
 func (l *Line) buildChildren() (moves []string) {
-	fen := l.position.ExportFEN()
-	m, c := l.position.GetMoves(l.position.sideToMove)
+	fen := l.Position.ExportFEN()
+	m, c := l.Position.GetMoves(l.Position.sideToMove)
 	all := append(c, m...)
-	candidateMoves := make([]Line, len(all))
+	candidateMoves := make([]*Line, len(all))
 	for i := 0; i < len(candidateMoves); i++ {
-		candidateMoves[i] = Line{}
-		candidateMoves[i].parent = l
-		candidateMoves[i].position = &Board{}
-		candidateMoves[i].position.ImportFEN(fen)
-		candidateMoves[i].position.MoveLongAlg(all[i])
+		candidateMoves[i] = &Line{}
+		candidateMoves[i].Parent = l
+		candidateMoves[i].Position = &Board{}
+		candidateMoves[i].Position.ImportFEN(fen)
+		candidateMoves[i].Position.MoveLongAlg(all[i])
 	}
 
-	l.candidates = &candidateMoves
+	l.Candidates = candidateMoves
 
 	return all
 }
 
-func (l Line) minmax(depth int) float64 {
+func (l *Line) minmax(depth int) float64 {
 	if depth == 0 {
-		return l.position.GetEvaluation()
+		return l.Position.GetEvaluation()
 	}
 
-	if l.candidates == nil {
+	if l.Candidates == nil {
 		l.buildChildren()
 	}
 
-	if l.position.sideToMove == whiteToMove {
+	if l.Position.sideToMove == whiteToMove {
 		val := math.Inf(-1)
-		for i := 0; i < len(*l.candidates); i++ {
-			val = math.Max(val, (*l.candidates)[i].minmax(depth-1))
+		for i := 0; i < len(l.Candidates); i++ {
+			val = math.Max(val, (l.Candidates)[i].minmax(depth-1))
 		}
 		return val
 	} else {
 		val := math.Inf(1)
-		for i := 0; i < len(*l.candidates); i++ {
-			val = math.Min(val, (*l.candidates)[i].minmax(depth-1))
+		for i := 0; i < len(l.Candidates); i++ {
+			val = math.Min(val, l.Candidates[i].minmax(depth-1))
 		}
 		return val
 	}
 }
 
-func (l Line) alphabeta(depth int, alpha, beta float64) float64 {
+func (l *Line) alphabeta(depth int, alpha, beta float64) float64 {
 	if depth == 0 {
-		return l.position.GetEvaluation()
+		return l.Position.GetEvaluation()
 	}
 
-	if l.candidates == nil {
+	if l.Candidates == nil {
 		l.buildChildren()
 	}
 
-	if l.position.sideToMove == whiteToMove {
+	if l.Position.sideToMove == whiteToMove {
 		val := math.Inf(-1)
-		for i := 0; i < len(*l.candidates); i++ {
-			val = math.Max(val, (*l.candidates)[i].alphabeta(depth-1, alpha, beta))
+		for i := 0; i < len(l.Candidates); i++ {
+			val = math.Max(val, l.Candidates[i].alphabeta(depth-1, alpha, beta))
 			alpha = math.Max(alpha, val)
 			if val >= beta {
 				break
@@ -102,8 +102,8 @@ func (l Line) alphabeta(depth int, alpha, beta float64) float64 {
 		return val
 	} else {
 		val := math.Inf(1)
-		for i := 0; i < len(*l.candidates); i++ {
-			val = math.Min(val, (*l.candidates)[i].alphabeta(depth-1, alpha, beta))
+		for i := 0; i < len(l.Candidates); i++ {
+			val = math.Min(val, l.Candidates[i].alphabeta(depth-1, alpha, beta))
 			beta = math.Min(beta, val)
 			if val <= alpha {
 				break
@@ -114,23 +114,22 @@ func (l Line) alphabeta(depth int, alpha, beta float64) float64 {
 }
 
 func (b *Board) GetMove(depth int) string {
-	if rootEvalNode.candidates == nil {
-		//fmt.Println(rootEvalNode)
+	if rootEvalNode.Candidates == nil {
 		rootEvalNode.buildChildren()
 	}
 	captures, moves := b.GetMoves(b.sideToMove)
 	candidateMoves := append(captures, moves...)
 
-	moveStrengths := make([]float64, len(*rootEvalNode.candidates))
+	moveStrengths := make([]float64, len(rootEvalNode.Candidates))
 	bestMoveIndex := 0
 	wg.Add(len(moveStrengths))
 	for i := 0; i < len(moveStrengths); i++ {
 		ii := i
 		go func() {
 			defer wg.Done()
-			//moveStrengths[ii] = rootEvalNode.candidates[ii].minmax(depth)
-			moveStrengths[ii] = (*rootEvalNode.candidates)[ii].alphabeta(depth, math.Inf(-1), math.Inf(1))
-			//moveStrengths[ii] = line.candidates[ii].alphabeta(depth, -15, 15)
+			//moveStrengths[ii] = rootEvalNode.Candidates[ii].minmax(depth)
+			moveStrengths[ii] = rootEvalNode.Candidates[ii].alphabeta(depth, math.Inf(-1), math.Inf(1))
+			//moveStrengths[ii] = line.Candidates[ii].alphabeta(depth, -15, 15)
 		}()
 	}
 
@@ -152,7 +151,7 @@ func (b *Board) GetMove(depth int) string {
 			}
 		}
 	}
-	rootEvalNode = &(*rootEvalNode.candidates)[bestMoveIndex]
+	rootEvalNode = rootEvalNode.Candidates[bestMoveIndex]
 	if DEBUG {
 		for i := 0; i < len(candidateMoves); i++ {
 			fmt.Printf("(%s %.2f) ", candidateMoves[i], moveStrengths[i])

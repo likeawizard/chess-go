@@ -1,6 +1,6 @@
-module Chess
+module github.com/likeawizard/chess-go
 
-go 1.13
+go 1.17
 
 require (
 	github.com/joho/godotenv v1.4.0

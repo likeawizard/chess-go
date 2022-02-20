@@ -76,7 +76,7 @@ func (b *Board) autoPromotePawn(to Coord) {
 	}
 }
 
-func (b Board) AccessCoord(c Coord) int {
+func (b *Board) AccessCoord(c Coord) int {
 	return b.coords[c.File][c.Rank]
 }
 
@@ -123,6 +123,6 @@ func (b *Board) TrackMove(move string) {
 	b.moves = append(b.moves, move)
 }
 
-func (b Board) GetMoveList() []string {
+func (b *Board) GetMoveList() []string {
 	return b.moves
 }

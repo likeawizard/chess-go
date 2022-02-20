@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Chess/board"
+	"github.com/likeawizard/chess-go/board"
 	"testing"
 )
 

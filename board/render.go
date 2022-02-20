@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	performanceFormat = "Time: %.0f. Evaluations per second %.0f (Cached percent %f)\n"
+	performanceFormat = "Time: %.0f. Evaluations per second %.0f (Cached %d Cached percent %f)\n"
 )
 
 type BoardRender interface {
@@ -78,7 +78,7 @@ func (render *SimpleAsciiRender) InitRender(b *Board, elapsed *time.Duration) {
 func (render *TviewBoardRender) Update() {
 	render.boardView.SetText(render.b.ASCIIRender())
 	render.currentFen.SetText(render.b.ExportFEN())
-	render.performance.SetText(fmt.Sprintf(performanceFormat, render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), float64(CachedEvals)/float64(Evaluations+CachedEvals)))
+	render.performance.SetText(fmt.Sprintf(performanceFormat, render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), CachedEvals, float64(CachedEvals)/float64(Evaluations+CachedEvals)))
 	render.moves.SetText(fmt.Sprintf("%v", render.b.GetMoveList()))
 
 	render.app.Draw()
@@ -89,7 +89,7 @@ func (render *SimpleAsciiRender) Update() {
 	fmt.Println(render.b.ExportFEN())
 
 	fmt.Println(render.b.GetMoveList()[:1])
-	fmt.Printf(performanceFormat+"\n", render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), float64(CachedEvals)/float64(Evaluations+CachedEvals))
+	fmt.Printf(performanceFormat+"\n", render.elapsed.Seconds(), float64(Evaluations+CachedEvals)/render.elapsed.Seconds(), CachedEvals, float64(CachedEvals)/float64(Evaluations+CachedEvals))
 }
 func (render *TviewBoardRender) Run() {
 	render.app.SetRoot(render.gridLayout, true).SetFocus(render.gridLayout).Run()

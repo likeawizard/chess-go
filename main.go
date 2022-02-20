@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/likeawizard/chess-go/board"
 	"os"
 	"strconv"
 	"time"
 )
-import "Chess/board"
 
 func main() {
 	err := godotenv.Load()
