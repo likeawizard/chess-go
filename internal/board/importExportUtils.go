@@ -5,12 +5,12 @@ import (
 	"strconv"
 )
 
-func (b Board) ExportFEN() string {
+func (b *Board) ExportFEN() string {
 	var fen string
 	var emptySquaresCounter, piece int
-	for r := len(b.coords) - 1; r >= 0; r-- {
-		for f := 0; f < len(b.coords); f++ {
-			piece = b.coords[f][r]
+	for r := len(b.Coords) - 1; r >= 0; r-- {
+		for f := 0; f < len(b.Coords); f++ {
+			piece = b.Coords[f][r]
 			if piece == 0 {
 				emptySquaresCounter++
 			} else {
@@ -29,7 +29,7 @@ func (b Board) ExportFEN() string {
 			fen += "/"
 		}
 	}
-	fen += fmt.Sprintf(" %s %s %s %d %d", b.sideToMove, b.castlingRights, b.enPassantTarget, b.halfMoveCounter, b.fullMoveCounter)
+	fen += fmt.Sprintf(" %s %s %s %d %d", b.SideToMove, b.CastlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
 	return fen
 }
 
@@ -41,7 +41,7 @@ func (b *Board) ImportFEN(fen string) {
 		delimiter int
 	)
 
-	b.coords = [8][8]int{}
+	b.Coords = [8][8]int{}
 	for index, char := range chars {
 		symbol := string(char)
 		offset, err := strconv.Atoi(symbol)
@@ -54,7 +54,7 @@ func (b *Board) ImportFEN(fen string) {
 				break
 			} else {
 				piece := PieceSymbolToInt(symbol)
-				b.coords[f][r] = piece
+				b.Coords[f][r] = piece
 				f++
 			}
 		} else {
@@ -62,9 +62,9 @@ func (b *Board) ImportFEN(fen string) {
 		}
 	}
 	fen = fen[delimiter:]
-	b.sideToMove = fen[:1]
-	b.fullMoveCounter, _ = strconv.Atoi(fen[len(fen)-1:])
-	b.halfMoveCounter, _ = strconv.Atoi(fen[len(fen)-3 : len(fen)-2])
+	b.SideToMove = fen[:1]
+	b.FullMoveCounter, _ = strconv.Atoi(fen[len(fen)-1:])
+	b.HalfMoveCounter, _ = strconv.Atoi(fen[len(fen)-3 : len(fen)-2])
 
 	fen = fen[2 : len(fen)-4]
 
@@ -75,6 +75,6 @@ func (b *Board) ImportFEN(fen string) {
 			delimiter = i + 1
 		}
 	}
-	b.castlingRights = fen[:delimiter-1]
-	b.enPassantTarget = fen[delimiter:]
+	b.CastlingRights = fen[:delimiter-1]
+	b.EnPassantTarget = fen[delimiter:]
 }

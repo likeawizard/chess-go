@@ -6,14 +6,14 @@ import (
 )
 
 func (b *Board) removeCastlingRight(castling string) {
-	b.castlingRights = strings.ReplaceAll(b.castlingRights, castling, "")
-	if len(b.castlingRights) == 0 {
-		b.castlingRights = "-"
+	b.CastlingRights = strings.ReplaceAll(b.CastlingRights, castling, "")
+	if len(b.CastlingRights) == 0 {
+		b.CastlingRights = "-"
 	}
 }
 
 func (b *Board) updateCastlingRights(from Coord) {
-	if b.castlingRights == "-" {
+	if b.CastlingRights == "-" {
 		return
 	}
 	square := CoordToAlg(from)
@@ -37,23 +37,23 @@ func (b *Board) updateCastlingRights(from Coord) {
 }
 
 func (b *Board) updateEnPassantTarget(from, to Coord) {
-	piece, _ := getPiece(*b, to)
+	piece, _ := GetPiece(*b, to)
 
 	isPawnMove := piece == P || piece == p
 	isDoubleMove := int(math.Abs(float64(from.Rank-to.Rank))) == 2
 
 	if isDoubleMove && isPawnMove {
-		b.enPassantTarget = CoordToAlg(Coord{from.File, (from.Rank + to.Rank) / 2})
+		b.EnPassantTarget = CoordToAlg(Coord{from.File, (from.Rank + to.Rank) / 2})
 	} else {
-		b.enPassantTarget = "-"
+		b.EnPassantTarget = "-"
 	}
 }
 
 func (b *Board) updateSideToMove() {
-	if b.sideToMove == whiteToMove {
-		b.sideToMove = blackToMove
+	if b.SideToMove == whiteToMove {
+		b.SideToMove = blackToMove
 	} else {
-		b.sideToMove = whiteToMove
-		b.fullMoveCounter++
+		b.SideToMove = whiteToMove
+		b.FullMoveCounter++
 	}
 }

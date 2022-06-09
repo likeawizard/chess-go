@@ -41,7 +41,7 @@ func (l *Line) GetEval() float64 {
 
 func (l *Line) buildChildren() (moves []string) {
 	fen := l.Position.ExportFEN()
-	m, c := l.Position.GetMoves(l.Position.sideToMove)
+	m, c := l.Position.GetMoves(l.Position.SideToMove)
 	all := append(c, m...)
 	candidateMoves := make([]*Line, len(all))
 	for i := 0; i < len(candidateMoves); i++ {
@@ -66,7 +66,7 @@ func (l *Line) minmax(depth int) float64 {
 		l.buildChildren()
 	}
 
-	if l.Position.sideToMove == whiteToMove {
+	if l.Position.SideToMove == whiteToMove {
 		val := math.Inf(-1)
 		for i := 0; i < len(l.Candidates); i++ {
 			val = math.Max(val, (l.Candidates)[i].minmax(depth-1))
@@ -90,7 +90,7 @@ func (l *Line) alphabeta(depth int, alpha, beta float64) float64 {
 		l.buildChildren()
 	}
 
-	if l.Position.sideToMove == whiteToMove {
+	if l.Position.SideToMove == whiteToMove {
 		val := math.Inf(-1)
 		for i := 0; i < len(l.Candidates); i++ {
 			val = math.Max(val, l.Candidates[i].alphabeta(depth-1, alpha, beta))
@@ -117,7 +117,7 @@ func (b *Board) GetMove(depth int) string {
 	if rootEvalNode.Candidates == nil {
 		rootEvalNode.buildChildren()
 	}
-	captures, moves := b.GetMoves(b.sideToMove)
+	captures, moves := b.GetMoves(b.SideToMove)
 	candidateMoves := append(captures, moves...)
 
 	moveStrengths := make([]float64, len(rootEvalNode.Candidates))
@@ -134,7 +134,7 @@ func (b *Board) GetMove(depth int) string {
 	}
 
 	wg.Wait()
-	if b.sideToMove == whiteToMove {
+	if b.SideToMove == whiteToMove {
 		bestMove := math.Inf(-1)
 		for i := 0; i < len(moveStrengths); i++ {
 			if moveStrengths[i] > bestMove {
@@ -162,9 +162,9 @@ func (b *Board) GetMove(depth int) string {
 }
 
 func (b *Board) GetEvaluation() float64 {
-	if b.isEvaluated {
+	if b.IsEvaluated {
 		CachedEvals++
-		return b.cachedEval
+		return b.CachedEval
 	}
 
 	whiteKingDead := !CoordInBounds(GetKing(*b, whiteToMove))
@@ -186,7 +186,7 @@ func (b *Board) GetEvaluation() float64 {
 		eval += baseWeight
 	}
 
-	b.isEvaluated, b.cachedEval = true, eval
+	b.IsEvaluated, b.CachedEval = true, eval
 	Evaluations++
 	return eval
 }

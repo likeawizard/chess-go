@@ -1,10 +1,11 @@
-package main
+package board
 
 import (
-	"github.com/likeawizard/chess-go/board"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/likeawizard/chess-go/internal/board"
 )
 
 func TestKnight(t *testing.T) {

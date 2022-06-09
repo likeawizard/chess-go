@@ -16,17 +16,17 @@ package board
 12 bk
 */
 type Board struct {
-	coords          [8][8]int
-	sideToMove      string
-	castlingRights  string
-	enPassantTarget string
-	halfMoveCounter int
-	fullMoveCounter int
-	isEvaluated     bool
-	cachedEval      float64
-	enPassantMoves  []string
-	trackMoves      bool
-	moves           []string
+	Coords          [8][8]int
+	SideToMove      string
+	CastlingRights  string
+	EnPassantTarget string
+	HalfMoveCounter int
+	FullMoveCounter int
+	IsEvaluated     bool
+	CachedEval      float64
+	EnPassantMoves  []string
+	TrackMoves      bool
+	Moves           []string
 }
 
 type Coord struct {

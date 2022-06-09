@@ -21,7 +21,7 @@ func GetKing(b Board, color string) (c Coord) {
 	if color == blackToMove {
 		king += PieceOffset
 	}
-	for f, file := range b.coords {
+	for f, file := range b.Coords {
 		for r, piece := range file {
 			if piece == king {
 				c.File = f
@@ -33,14 +33,24 @@ func GetKing(b Board, color string) (c Coord) {
 }
 
 func GetPieces(b Board, color string) (pieces []Coord) {
-	for f, file := range b.coords {
+	for f, file := range b.Coords {
 		for r := range file {
 			coord := Coord{f, r}
-			piece1, color1 := getPiece(b, coord)
+			piece1, color1 := GetPiece(b, coord)
 			if piece1 != 0 && color == color1 {
 				pieces = append(pieces, coord)
 			}
 		}
+	}
+	return
+}
+
+func GetPiece(b Board, coord Coord) (piece int, color string) {
+	piece = b.AccessCoord(coord)
+	if piece <= PieceOffset {
+		color = whiteToMove
+	} else {
+		color = blackToMove
 	}
 	return
 }
@@ -74,7 +84,7 @@ func (b Board) hasRankConflict(from Coord) bool {
 	identicalPieceCount := 0
 	piece := b.AccessCoord(from)
 	for i := 0; i < 8; i++ {
-		if b.coords[from.File][i] == piece {
+		if b.Coords[from.File][i] == piece {
 			identicalPieceCount++
 		}
 	}
@@ -85,7 +95,7 @@ func (b Board) hasFileConflict(from Coord) bool {
 	identicalPieceCount := 0
 	piece := b.AccessCoord(from)
 	for i := 0; i < 8; i++ {
-		if b.coords[i][from.Rank] == piece {
+		if b.Coords[i][from.Rank] == piece {
 			identicalPieceCount++
 		}
 	}
@@ -118,5 +128,5 @@ func (b *Board) playOutLine(line []string) {
 
 func (b *Board) placePiece(coord string, piece int) {
 	target := AlgToCoord(coord)
-	b.coords[target.File][target.Rank] = piece
+	b.Coords[target.File][target.Rank] = piece
 }

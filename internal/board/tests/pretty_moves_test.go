@@ -1,8 +1,9 @@
-package main
+package board
 
 import (
-	"github.com/likeawizard/chess-go/board"
 	"testing"
+
+	"github.com/likeawizard/chess-go/internal/board"
 )
 
 func TestSimplePawnMove(t *testing.T) {

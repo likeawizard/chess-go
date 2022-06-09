@@ -8,9 +8,9 @@ func (b Board) VerifyMove(longalg string) bool {
 	from, _ := longAlgToCoords(longalg)
 	moves, captures := b.GetAvailableMoves(from)
 
-	_, color := getPiece(b, from)
+	_, color := GetPiece(b, from)
 
-	if color != b.sideToMove {
+	if color != b.SideToMove {
 		return false
 	}
 
@@ -30,19 +30,9 @@ func (b Board) VerifyMove(longalg string) bool {
 
 }
 
-func getPiece(b Board, coord Coord) (piece int, color string) {
-	piece = b.AccessCoord(coord)
-	if piece <= PieceOffset {
-		color = whiteToMove
-	} else {
-		color = blackToMove
-	}
-	return
-}
-
 func isOpponentPiece(b Board, source, target Coord) bool {
-	piece, color := getPiece(b, target)
-	_, ownColor := getPiece(b, source)
+	piece, color := GetPiece(b, target)
+	_, ownColor := GetPiece(b, source)
 	return piece != 0 && color != ownColor
 }
 
@@ -77,7 +67,7 @@ func (b Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMov
 }
 
 func (b Board) GetPawnMoves(c Coord) (moves, captures []string) {
-	isWhite := b.coords[c.File][c.Rank] <= PieceOffset
+	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
 	pawnCaptures := [2][2]int{{1, 1}, {-1, 1}}
 	var isFirstMove bool
 	var direction = 1
@@ -106,7 +96,7 @@ func (b Board) GetPawnMoves(c Coord) (moves, captures []string) {
 
 	for i := 0; i < 2; i++ {
 		targetCoord := Coord{c.File + pawnCaptures[i][0], c.Rank + (direction * pawnCaptures[i][1])}
-		if CoordInBounds(targetCoord) && CoordToAlg(targetCoord) == b.enPassantTarget {
+		if CoordInBounds(targetCoord) && CoordToAlg(targetCoord) == b.EnPassantTarget {
 			captures = append(captures, CoordsToMove(c, targetCoord))
 		}
 	}
@@ -271,7 +261,7 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 		return
 	}
 
-	if b.sideToMove == whiteToMove {
+	if b.SideToMove == whiteToMove {
 		m, c := b.GetMovesNoCastling(blackToMove)
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
@@ -284,12 +274,12 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 
 		//fmt.Println(moveDest, captureDest)
 		//fmt.Println(strings.Contains(b.castlingRights, wOOO), !strings.Contains(moveDest, "c1"), !strings.Contains(moveDest, "d1"), !strings.Contains(captureDest, "e1"))
-		if strings.Contains(b.castlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(d1) == 0 &&
+		if strings.Contains(b.CastlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(d1) == 0 &&
 			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1c1")
 		}
 
-		if strings.Contains(b.castlingRights, wOO) && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
+		if strings.Contains(b.CastlingRights, wOO) && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
 			!strings.Contains(moveDest, "f1") && !strings.Contains(moveDest, "g1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1g1")
 		}
@@ -304,12 +294,12 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 			g8 = Coord{6, 7}
 		)
 
-		if strings.Contains(b.castlingRights, bOOO) && b.AccessCoord(c8) == 0 && b.AccessCoord(d8) == 0 &&
+		if strings.Contains(b.CastlingRights, bOOO) && b.AccessCoord(c8) == 0 && b.AccessCoord(d8) == 0 &&
 			!strings.Contains(moveDest, "c8") && !strings.Contains(moveDest, "d8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8c8")
 		}
 
-		if strings.Contains(b.castlingRights, bOO) && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
+		if strings.Contains(b.CastlingRights, bOO) && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
 			!strings.Contains(moveDest, "f8") && !strings.Contains(moveDest, "g8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8g8")
 		}
@@ -336,5 +326,5 @@ func (b Board) isCastling(move string) bool {
 func (b Board) isEnPassant(move string) bool {
 	from, to := move[:2], move[2:]
 	piece := b.AccessCoord(AlgToCoord(from))
-	return (piece == 1 || piece == 7) && to == b.enPassantTarget
+	return (piece == 1 || piece == 7) && to == b.EnPassantTarget
 }
