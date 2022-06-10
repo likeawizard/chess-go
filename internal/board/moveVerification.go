@@ -261,8 +261,8 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 		return
 	}
 
-	if b.SideToMove == whiteToMove {
-		m, c := b.GetMovesNoCastling(blackToMove)
+	if b.SideToMove == WhiteToMove {
+		m, c := b.GetMovesNoCastling(BlackToMove)
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (
@@ -284,7 +284,7 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 			moves = append(moves, "e1g1")
 		}
 	} else {
-		m, c := b.GetMovesNoCastling(whiteToMove)
+		m, c := b.GetMovesNoCastling(WhiteToMove)
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (

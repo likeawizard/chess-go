@@ -52,8 +52,8 @@ const (
 
 const (
 	startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-	whiteToMove = "w"
-	blackToMove = "b"
+	WhiteToMove = "w"
+	BlackToMove = "b"
 	wOO         = "K"
 	wOOO        = "Q"
 	bOO         = "k"

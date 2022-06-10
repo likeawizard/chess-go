@@ -2,43 +2,58 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
+	eval "github.com/likeawizard/chess-go/internal/evaluation"
 	"github.com/likeawizard/chess-go/internal/render"
-
-	"os"
-	"strconv"
-	"time"
+	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Error loading .env")
+		fmt.Printf("Error loading .env: %s\n", err)
 		return
 	}
 	b1 := &board.Board{}
 	b1.Init()
-	depth, _ := strconv.Atoi(os.Getenv("EVALUATION_DEPTH"))
+	e, err := eval.NewEvalEngine(b1)
+	if err != nil {
+		fmt.Printf("Unable to load EvalEngine: %s\n", err)
+		return
+	}
 	b1.SetTrackMoves(true)
-	board.InitEvalEngine(b1)
-	var r render.BoardRender
-	var aimove string
-	var elapsed time.Duration
 
-	r = render.New()
-	r.InitRender(b1, &elapsed)
+	r := render.New()
+	r.InitRender(b1, e)
+	RegisterIterrupt(b1)
 	go func() {
 		for {
-			start := time.Now()
-			aimove = b1.GetMove(depth)
-			elapsed = time.Since(start)
-			b1.MoveLongAlg(aimove)
+			e.GetMove()
+			best := e.RootNode.PickBestMove(b1.SideToMove)
+			candidates := e.RootNode.PickBestMoves(3)
+			for _, move := range candidates {
+				fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())
+			}
+			b1.MoveLongAlg(best.MoveToPlay)
+			e.PlayMove(best)
 			r.Update()
-			board.Evaluations = 0
-			board.CachedEvals = 0
 		}
 	}()
 	r.Run()
+}
+
+func RegisterIterrupt(b *board.Board) {
+	c := make(chan os.Signal)
+
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println(b.GetMoveList())
+		os.Exit(0)
+	}()
 }

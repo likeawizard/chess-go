@@ -18,7 +18,7 @@ func GetKing(b Board, color string) (c Coord) {
 	c.File = 8
 	c.Rank = 8
 	king := 6
-	if color == blackToMove {
+	if color == BlackToMove {
 		king += PieceOffset
 	}
 	for f, file := range b.Coords {
@@ -48,9 +48,9 @@ func GetPieces(b Board, color string) (pieces []Coord) {
 func GetPiece(b Board, coord Coord) (piece int, color string) {
 	piece = b.AccessCoord(coord)
 	if piece <= PieceOffset {
-		color = whiteToMove
+		color = WhiteToMove
 	} else {
-		color = blackToMove
+		color = BlackToMove
 	}
 	return
 }

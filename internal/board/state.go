@@ -50,10 +50,10 @@ func (b *Board) updateEnPassantTarget(from, to Coord) {
 }
 
 func (b *Board) updateSideToMove() {
-	if b.SideToMove == whiteToMove {
-		b.SideToMove = blackToMove
+	if b.SideToMove == WhiteToMove {
+		b.SideToMove = BlackToMove
 	} else {
-		b.SideToMove = whiteToMove
+		b.SideToMove = WhiteToMove
 		b.FullMoveCounter++
 	}
 }
