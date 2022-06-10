@@ -60,7 +60,7 @@ func (b *Board) castle(move string) {
 	case "e8c8":
 		b.Coords[4][7] = empty
 		b.Coords[2][7] = k
-		b.Coords[7][7] = empty
+		b.Coords[0][7] = empty
 		b.Coords[3][7] = r
 	}
 }
