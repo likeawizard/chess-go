@@ -1,10 +1,11 @@
-package main
+package board
 
 import (
-	"github.com/likeawizard/chess-go/board"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/likeawizard/chess-go/internal/board"
 )
 
 //rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR w KQkq - 2 3
