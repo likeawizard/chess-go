@@ -111,7 +111,7 @@ func (e *EvalEngine) GetMove() {
 	case EVAL_MINMAX:
 		e.minmax(e.RootNode, e.SearchDepth)
 	case EVAL_ALPHABETA:
-		e.alphabeta(e.RootNode, e.SearchDepth, math.Inf(-1), math.Inf(1))
+		e.alphabetaSerial(e.RootNode, e.SearchDepth, math.Inf(-1), math.Inf(1))
 		// e.RootNode.alphabeta(e.SearchDepth, -15, 15)
 	}
 	e.MoveTime = time.Since(start)

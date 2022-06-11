@@ -10,7 +10,7 @@ func SideDependantEval(e *EvalEngine, b *board.Board) float64 {
 	if e.RootNode.Position.SideToMove == board.WhiteToMove {
 		return GetEvaluation2(e, b)
 	} else {
-		return GetEvaluation(e, b)
+		return GetEvaluation2(e, b)
 	}
 }
 
