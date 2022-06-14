@@ -88,7 +88,10 @@ func (lc *LichessConnector) HandleActiveGames(games []NowPlaying) {
 		e.GetMove()
 		best := e.RootNode.PickBestMove(b.SideToMove)
 		move := best.MoveToPlay
-		lc.MakeMove(game.GameID, move)
+		err := lc.MakeMove(game.GameID, move)
+		if err != nil {
+			lc.ResignGame(game.GameID)
+		}
 	}
 }
 
