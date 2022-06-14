@@ -1,5 +1,10 @@
 package lichess
 
+type StreamEvent struct {
+	Type      string    `json:"type"`
+	Challenge Challenge `json:"challenge"`
+}
+
 type ChallengeRsp struct {
 	In  []Challenge `json:"in"`
 	Out []Challenge `json:"out"`
