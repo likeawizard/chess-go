@@ -1,8 +1,17 @@
 package lichess
 
+const (
+	EVENT_CHALLENGE  = "challenge"
+	EVENT_GAME_START = "gameStart"
+	EVENT_GAME_END   = "gameEnd"
+	GAME_EVENT_FULL  = "gameFull"
+	GAME_EVENT_STATE = "gameState"
+)
+
 type StreamEvent struct {
 	Type      string    `json:"type"`
 	Challenge Challenge `json:"challenge"`
+	Game      Game      `json:"game"`
 }
 
 type ChallengeRsp struct {
@@ -81,4 +90,74 @@ type NowPlaying struct {
 	HasMoved bool     `json:"hasMoved"`
 	Opponent Opponent `json:"opponent"`
 	IsMyTurn bool     `json:"isMyTurn"`
+}
+
+type Compat struct {
+	Bot   bool `json:"bot"`
+	Board bool `json:"board"`
+}
+type Game struct {
+	GameID      string   `json:"gameId"`
+	FullID      string   `json:"fullId"`
+	Color       string   `json:"color"`
+	Fen         string   `json:"fen"`
+	HasMoved    bool     `json:"hasMoved"`
+	IsMyTurn    bool     `json:"isMyTurn"`
+	LastMove    string   `json:"lastMove"`
+	Opponent    Opponent `json:"opponent"`
+	Perf        string   `json:"perf"`
+	Rated       bool     `json:"rated"`
+	SecondsLeft int      `json:"secondsLeft"`
+	Source      string   `json:"source"`
+	Speed       string   `json:"speed"`
+	Variant     Variant  `json:"variant"`
+	Compat      Compat   `json:"compat"`
+}
+
+type GameState struct {
+	Type       string  `json:"type"`
+	ID         string  `json:"id"`
+	Rated      bool    `json:"rated"`
+	Variant    Variant `json:"variant"`
+	Clock      Clock   `json:"clock"`
+	Speed      string  `json:"speed"`
+	Perf       Perf    `json:"perf"`
+	CreatedAt  int64   `json:"createdAt"`
+	White      White   `json:"white"`
+	Black      Black   `json:"black"`
+	InitialFen string  `json:"initialFen"`
+	State      State   `json:"state"`
+}
+
+type Clock struct {
+	Initial   int `json:"initial"`
+	Increment int `json:"increment"`
+}
+
+type White struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Provisional bool   `json:"provisional"`
+	Rating      int    `json:"rating"`
+	Title       string `json:"title"`
+}
+type Black struct {
+	ID     string      `json:"id"`
+	Name   string      `json:"name"`
+	Rating int         `json:"rating"`
+	Title  interface{} `json:"title"`
+}
+type State struct {
+	Type   string `json:"type"`
+	Moves  string `json:"moves"`
+	Wtime  int    `json:"wtime"`
+	Btime  int    `json:"btime"`
+	Winc   int    `json:"winc"`
+	Binc   int    `json:"binc"`
+	Status string `json:"status"`
+}
+
+type MoveQueue struct {
+	Fen    string
+	GameID string
 }
