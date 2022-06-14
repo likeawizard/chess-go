@@ -9,17 +9,14 @@ import (
 
 func main() {
 	lc := lichess.NewLichessConnector()
+	decoder, err := lc.OpenEventStream()
+	if err != nil {
+		fmt.Printf("Failed to open stream: %s\n", err)
+		return
+	}
+
+	go lc.ListenToChallenges(decoder)
 	for {
-		challenges, err := lc.GetChallenges()
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		if len(challenges) > 0 {
-			fmt.Println(challenges)
-			lc.HandleChallenges(challenges)
-		}
-
 		games := lc.CheckActiveGames()
 
 		if len(games) > 0 {

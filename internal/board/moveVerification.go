@@ -272,8 +272,6 @@ func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []st
 			g1 = Coord{6, 0}
 		)
 
-		//fmt.Println(moveDest, captureDest)
-		//fmt.Println(strings.Contains(b.castlingRights, wOOO), !strings.Contains(moveDest, "c1"), !strings.Contains(moveDest, "d1"), !strings.Contains(captureDest, "e1"))
 		if strings.Contains(b.CastlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(d1) == 0 &&
 			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1c1")

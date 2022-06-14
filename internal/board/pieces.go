@@ -103,14 +103,14 @@ func (b Board) hasFileConflict(from Coord) bool {
 }
 
 func (b Board) GetMoves(color string) (moves, captures []string) {
-	return b.GetMovesRaw(color, false)
+	return b.getMoves(color, false)
 }
 
 func (b Board) GetMovesNoCastling(color string) (moves, captures []string) {
-	return b.GetMovesRaw(color, true)
+	return b.getMoves(color, true)
 }
 
-func (b Board) GetMovesRaw(color string, excludeCastling bool) (moves, captures []string) {
+func (b Board) getMoves(color string, excludeCastling bool) (moves, captures []string) {
 	pieces := GetPieces(b, color)
 	for _, piece := range pieces {
 		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)

@@ -3,6 +3,7 @@ package board
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 func (b *Board) ExportFEN() string {
@@ -33,48 +34,61 @@ func (b *Board) ExportFEN() string {
 	return fen
 }
 
-func (b *Board) ImportFEN(fen string) {
-	var (
-		f         = 0
-		r         = 7
-		chars     = []rune(fen)
-		delimiter int
-	)
+func (b *Board) ImportFEN(fen string) error {
+	fields := strings.Fields(fen)
+	if len(fields) != 6 {
+		return fmt.Errorf("FEN must contain six fields - '%s'", fen)
+	}
+	position := fields[0]
+	sideToMove, castling, enPassant, halfMove, fullMove := fields[1], fields[2], fields[3], fields[4], fields[5]
 
-	b.Coords = [8][8]int{}
-	for index, char := range chars {
+	var err error
+
+	b.Coords, err = parsePosition(position)
+	if err != nil {
+		return err
+	}
+
+	b.SideToMove = sideToMove
+	b.FullMoveCounter, err = strconv.Atoi(fullMove)
+	if err != nil {
+		return err
+	}
+
+	b.HalfMoveCounter, err = strconv.Atoi(halfMove)
+	if err != nil {
+		return err
+	}
+
+	b.CastlingRights = castling
+	b.EnPassantTarget = enPassant
+
+	return nil
+}
+
+func parsePosition(position string) ([8][8]int, error) {
+	var (
+		f = 0
+		r = 7
+	)
+	c := [8][8]int{}
+	for _, char := range position {
 		symbol := string(char)
 		offset, err := strconv.Atoi(symbol)
 		if err != nil {
-			if symbol == "/" {
+			if char == '/' {
 				f = 0
 				r--
-			} else if symbol == " " {
-				delimiter = index + 1
+			} else if char == ' ' {
 				break
 			} else {
 				piece := PieceSymbolToInt(symbol)
-				b.Coords[f][r] = piece
+				c[f][r] = piece
 				f++
 			}
 		} else {
 			f += offset
 		}
 	}
-	fen = fen[delimiter:]
-	b.SideToMove = fen[:1]
-	b.FullMoveCounter, _ = strconv.Atoi(fen[len(fen)-1:])
-	b.HalfMoveCounter, _ = strconv.Atoi(fen[len(fen)-3 : len(fen)-2])
-
-	fen = fen[2 : len(fen)-4]
-
-	chars = []rune(fen)
-
-	for i, char := range chars {
-		if string(char) == " " {
-			delimiter = i + 1
-		}
-	}
-	b.CastlingRights = fen[:delimiter-1]
-	b.EnPassantTarget = fen[delimiter:]
+	return c, nil
 }

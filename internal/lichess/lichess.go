@@ -35,6 +35,7 @@ func (lc *LichessConnector) request(path, method string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	body, _ := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -155,4 +156,32 @@ func (lc *LichessConnector) Decline(c Challenge) error {
 	path := fmt.Sprintf("%s/%s/decline", challengePath, c.ID)
 	_, err := lc.request(path, method)
 	return err
+}
+
+func (lc *LichessConnector) OpenEventStream() (*json.Decoder, error) {
+	req, err := http.NewRequest(http.MethodGet, url+"/stream/event", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+lc.token)
+	resp, err := lc.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	decoder := json.NewDecoder(resp.Body)
+	return decoder, nil
+}
+
+func (lc *LichessConnector) ListenToChallenges(decoder *json.Decoder) {
+	for decoder.More() {
+		var e StreamEvent
+		err := decoder.Decode(&e)
+		if err != nil {
+			fmt.Printf("Error decoding stream event: %s\n", err)
+		}
+		if e.Type == "challenge" {
+			fmt.Printf("New Challenge: %v\n", e.Challenge)
+			lc.HandleChallenges([]Challenge{e.Challenge})
+		}
+	}
 }
