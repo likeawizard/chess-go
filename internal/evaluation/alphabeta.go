@@ -1,13 +1,12 @@
 package eval
 
 import (
-	"math"
 	"sync"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float64) float64 {
+func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float32) float32 {
 	if depth == 0 {
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
@@ -17,16 +16,16 @@ func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float64) float64 
 		n.Children = n.GetChildNodes()
 	}
 
-	val := math.Inf(-1)
-	var comp CompFunc = math.Max
+	val := negInf
+	var comp CompFunc = Max32
 
 	if n.Position.SideToMove == board.BlackToMove {
-		val = math.Inf(1)
-		comp = math.Min
+		val = posInf
+		comp = Min32
 	}
 
 	var wg sync.WaitGroup
-	temp := make([]float64, len(n.Children))
+	temp := make([]float32, len(n.Children))
 
 	for i := 0; i < len(n.Children); i++ {
 
@@ -56,7 +55,7 @@ func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float64) float64 
 
 }
 
-func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float64) float64 {
+func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32) float32 {
 	if depth == 0 {
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
@@ -66,14 +65,14 @@ func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float64) fl
 		n.Children = n.GetChildNodes()
 	}
 
-	val := math.Inf(-1)
-	var comp CompFunc = math.Max
+	val := negInf
+	var comp CompFunc = Max32
 	var compB CompFuncBool = gte
 	var selectivecomp SelectiveCompFunc = maxA
 
 	if n.Position.SideToMove == board.BlackToMove {
-		val = math.Inf(1)
-		comp = math.Min
+		val = posInf
+		comp = Min32
 		compB = lte
 		selectivecomp = minB
 	}

@@ -8,7 +8,8 @@ import (
 
 func (b *Board) ExportFEN() string {
 	var fen string
-	var emptySquaresCounter, piece int
+	var emptySquaresCounter int
+	var piece uint8
 	for r := len(b.Coords) - 1; r >= 0; r-- {
 		for f := 0; f < len(b.Coords); f++ {
 			piece = b.Coords[f][r]
@@ -30,7 +31,7 @@ func (b *Board) ExportFEN() string {
 			fen += "/"
 		}
 	}
-	fen += fmt.Sprintf(" %s %s %s %d %d", b.SideToMove, b.CastlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
+	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, b.CastlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
 	return fen
 }
 
@@ -49,16 +50,18 @@ func (b *Board) ImportFEN(fen string) error {
 		return err
 	}
 
-	b.SideToMove = sideToMove
-	b.FullMoveCounter, err = strconv.Atoi(fullMove)
+	b.SideToMove = sideToMove[0]
+	fm, err := strconv.Atoi(fullMove)
 	if err != nil {
 		return err
 	}
+	b.FullMoveCounter = uint8(fm)
 
-	b.HalfMoveCounter, err = strconv.Atoi(halfMove)
+	hm, err := strconv.Atoi(halfMove)
 	if err != nil {
 		return err
 	}
+	b.HalfMoveCounter = uint8(hm)
 
 	b.CastlingRights = castling
 	b.EnPassantTarget = enPassant
@@ -66,12 +69,12 @@ func (b *Board) ImportFEN(fen string) error {
 	return nil
 }
 
-func parsePosition(position string) ([8][8]int, error) {
+func parsePosition(position string) ([8][8]uint8, error) {
 	var (
 		f = 0
 		r = 7
 	)
-	c := [8][8]int{}
+	c := [8][8]uint8{}
 	for _, char := range position {
 		symbol := string(char)
 		offset, err := strconv.Atoi(symbol)

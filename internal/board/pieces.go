@@ -6,18 +6,18 @@ var Pieces = [12]string{"P", "B", "N", "R", "Q", "K", "p", "b", "n", "r", "q", "
 var PiecesUnicode = [12]string{"\u265F", "\u265D", "\u265E", "\u265C", "\u265B", "\u265A", "\u2659", "\u2657", "\u2658", "\u2656", "\u2655", "\u2654"}
 var Sqaures = [2]string{"\u2B1B", "\u2B1C"}
 
-func PieceSymbolToInt(piece string) int {
+func PieceSymbolToInt(piece string) uint8 {
 	for i, p := range Pieces {
 		if p == piece {
-			return i + 1
+			return uint8(i) + 1
 		}
 	}
 	return 0
 }
-func GetKing(b Board, color string) (c Coord) {
+func GetKing(b Board, color byte) (c Coord) {
 	c.File = 8
 	c.Rank = 8
-	king := 6
+	var king uint8 = 6
 	if color == BlackToMove {
 		king += PieceOffset
 	}
@@ -32,7 +32,7 @@ func GetKing(b Board, color string) (c Coord) {
 	return
 }
 
-func GetPieces(b Board, color string) (pieces []Coord) {
+func GetPieces(b Board, color byte) (pieces []Coord) {
 	for f, file := range b.Coords {
 		for r := range file {
 			coord := Coord{f, r}
@@ -45,7 +45,7 @@ func GetPieces(b Board, color string) (pieces []Coord) {
 	return
 }
 
-func GetPiece(b Board, coord Coord) (piece int, color string) {
+func GetPiece(b Board, coord Coord) (piece uint8, color byte) {
 	piece = b.AccessCoord(coord)
 	if piece <= PieceOffset {
 		color = WhiteToMove
@@ -102,15 +102,15 @@ func (b Board) hasFileConflict(from Coord) bool {
 	return identicalPieceCount > 1
 }
 
-func (b Board) GetMoves(color string) (moves, captures []string) {
+func (b Board) GetMoves(color byte) (moves, captures []string) {
 	return b.getMoves(color, false)
 }
 
-func (b Board) GetMovesNoCastling(color string) (moves, captures []string) {
+func (b Board) GetMovesNoCastling(color byte) (moves, captures []string) {
 	return b.getMoves(color, true)
 }
 
-func (b Board) getMoves(color string, excludeCastling bool) (moves, captures []string) {
+func (b Board) getMoves(color byte, excludeCastling bool) (moves, captures []string) {
 	pieces := GetPieces(b, color)
 	for _, piece := range pieces {
 		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)
@@ -126,7 +126,7 @@ func (b *Board) playOutLine(line []string) {
 	}
 }
 
-func (b *Board) placePiece(coord string, piece int) {
+func (b *Board) placePiece(coord string, piece uint8) {
 	target := AlgToCoord(coord)
 	b.Coords[target.File][target.Rank] = piece
 }

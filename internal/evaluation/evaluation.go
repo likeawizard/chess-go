@@ -1,7 +1,6 @@
 package eval
 
 import (
-	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -24,12 +23,12 @@ const (
 type Node struct {
 	Position   *board.Board
 	MoveToPlay string
-	Evaluation float64
+	Evaluation float32
 	Parent     *Node
 	Children   []*Node
 }
-type SearchFunction func(n *Node, depth ...int) float64
-type EvalFunction func(*EvalEngine, *board.Board) float64
+type SearchFunction func(n *Node, depth ...int) float32
+type EvalFunction func(*EvalEngine, *board.Board) float32
 
 type EvalEngine struct {
 	Evaluations   int64
@@ -44,7 +43,6 @@ type EvalEngine struct {
 }
 
 func (n *Node) GetChildNodes() []*Node {
-	fen := n.Position.ExportFEN()
 	moves, captures := n.Position.GetMoves(n.Position.SideToMove)
 	all := append(captures, moves...)
 	childNodes := make([]*Node, len(all))
@@ -56,7 +54,7 @@ func (n *Node) GetChildNodes() []*Node {
 			Position:   &board.Board{},
 			MoveToPlay: all[i],
 		}
-		childNodes[i].Position.ImportFEN(fen)
+		childNodes[i].Position = n.Position.SimpleCopy()
 		childNodes[i].Position.MoveLongAlg(all[i])
 	}
 
@@ -96,7 +94,7 @@ func NewEvalEngine(b *board.Board) (*EvalEngine, error) {
 	}
 	return &EvalEngine{
 		RootNode:      NewRootNode(b),
-		EvalFunction:  SideDependantEval,
+		EvalFunction:  GetEvaluation,
 		DebugMode:     debug,
 		SearchDepth:   depth,
 		MaxGoroutines: make(chan struct{}, max),
@@ -111,15 +109,15 @@ func (e *EvalEngine) GetMove() {
 	case EVAL_MINMAX:
 		e.minmax(e.RootNode, e.SearchDepth)
 	case EVAL_ALPHABETA:
-		e.alphabetaSerial(e.RootNode, e.SearchDepth, math.Inf(-1), math.Inf(1))
+		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf)
 		// e.RootNode.alphabeta(e.SearchDepth, -15, 15)
 	}
 	e.MoveTime = time.Since(start)
 }
 
-func (n *Node) PickBestMove(side string) *Node {
+func (n *Node) PickBestMove(side byte) *Node {
 	var bestMove *Node
-	bestScore := math.Inf(-1)
+	bestScore := negInf
 	switch side {
 	case board.WhiteToMove:
 		for _, c := range n.Children {
@@ -128,7 +126,7 @@ func (n *Node) PickBestMove(side string) *Node {
 			}
 		}
 	case board.BlackToMove:
-		bestScore = math.Inf(1)
+		bestScore = posInf
 		for _, c := range n.Children {
 			if c.Evaluation < bestScore {
 				bestScore, bestMove = c.Evaluation, c
@@ -184,22 +182,36 @@ func (e *EvalEngine) PlayMove(move *Node) {
 	e.RootNode.Parent = nil
 }
 
-type CompFunc func(float64, float64) float64
-type SelectiveCompFunc func(float64, float64, float64) (float64, float64)
-type CompFuncBool func(float64, float64, float64) bool
+type CompFunc func(float32, float32) float32
+type SelectiveCompFunc func(float32, float32, float32) (float32, float32)
+type CompFuncBool func(float32, float32, float32) bool
 
-func gte(x, a, b float64) bool {
+func gte(x, a, b float32) bool {
 	return x >= b
 }
 
-func lte(x, a, b float64) bool {
+func lte(x, a, b float32) bool {
 	return x <= a
 }
 
-func minB(x, a, b float64) (float64, float64) {
-	return a, math.Min(x, b)
+func minB(x, a, b float32) (float32, float32) {
+	return a, Min32(x, b)
 }
 
-func maxA(x, a, b float64) (float64, float64) {
-	return math.Max(x, a), b
+func maxA(x, a, b float32) (float32, float32) {
+	return Max32(x, a), b
+}
+
+func Max32(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Min32(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
 }

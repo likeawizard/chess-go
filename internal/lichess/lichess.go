@@ -3,9 +3,12 @@ package lichess
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
@@ -13,7 +16,7 @@ import (
 )
 
 const (
-	url = "https://lichess.org/api"
+	apiUrl = "https://lichess.org/api"
 
 	accountPath   = "/account"
 	challengePath = "/challenge"
@@ -26,12 +29,15 @@ type LichessConnector struct {
 	MoveQueue chan MoveQueue
 }
 
-func (lc *LichessConnector) request(path, method string) ([]byte, error) {
-	req, err := http.NewRequest(method, url+path, nil)
+func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(method, apiUrl+path, payload)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Authorization", "Bearer "+lc.token)
+	if payload != nil {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
 	resp, err := lc.Client.Do(req)
 	if err != nil {
 		return nil, err
@@ -63,7 +69,7 @@ func NewLichessConnector() *LichessConnector {
 func (lc *LichessConnector) CheckActiveGames() []NowPlaying {
 	method := http.MethodGet
 	path := fmt.Sprintf("%s%s", accountPath, gamesPath)
-	body, err := lc.request(path, method)
+	body, err := lc.request(path, method, nil)
 	if err != nil {
 		return nil
 	}
@@ -101,7 +107,7 @@ func (lc *LichessConnector) MakeMove(gameID, move string) error {
 	method := http.MethodPost
 	path := fmt.Sprintf("/bot/game/%s/move/%s", gameID, move)
 
-	_, err := lc.request(path, method)
+	_, err := lc.request(path, method, nil)
 
 	return err
 }
@@ -110,7 +116,7 @@ func (lc *LichessConnector) ResignGame(gameID string) error {
 	method := http.MethodPost
 	path := fmt.Sprintf("/bot/game/%s/resign", gameID)
 
-	_, err := lc.request(path, method)
+	_, err := lc.request(path, method, nil)
 
 	return err
 }
@@ -119,7 +125,7 @@ func (lc *LichessConnector) GetChallenges() ([]Challenge, error) {
 	method := http.MethodGet
 	path := challengePath
 
-	body, err := lc.request(path, method)
+	body, err := lc.request(path, method, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -134,16 +140,22 @@ func (lc *LichessConnector) GetChallenges() ([]Challenge, error) {
 	}
 }
 
-func (lc *LichessConnector) ShouldAccept(ch Challenge) bool {
-	return ch.TimeControl.Type == "unlimited" && ch.Variant.Key == "standard"
+func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
+	if ch.Variant.Key != "standard" {
+		return false, "variant"
+	}
+	if ch.TimeControl.Type != "unlimited" && ch.TimeControl.Type != "correspondence" {
+		return false, "tooFast"
+	}
+	return true, ""
 }
 
 func (lc *LichessConnector) HandleChallenges(ch []Challenge) {
 	for _, c := range ch {
-		if lc.ShouldAccept(c) {
+		if ok, reason := lc.ShouldAccept(c); ok {
 			lc.Accept(c)
 		} else {
-			lc.Decline(c)
+			lc.Decline(c, reason)
 		}
 	}
 }
@@ -151,20 +163,28 @@ func (lc *LichessConnector) HandleChallenges(ch []Challenge) {
 func (lc *LichessConnector) Accept(c Challenge) error {
 	method := http.MethodPost
 	path := fmt.Sprintf("%s/%s/accept", challengePath, c.ID)
-	_, err := lc.request(path, method)
+	_, err := lc.request(path, method, nil)
 	return err
 
 }
 
-func (lc *LichessConnector) Decline(c Challenge) error {
+func (lc *LichessConnector) Decline(c Challenge, reason string) error {
 	method := http.MethodPost
+	if reason == "" {
+		reason = "generic"
+	}
+	data := url.Values{}
+	data.Set("reason", reason)
+	payload := data.Encode()
+
 	path := fmt.Sprintf("%s/%s/decline", challengePath, c.ID)
-	_, err := lc.request(path, method)
+
+	_, err := lc.request(path, method, strings.NewReader(payload))
 	return err
 }
 
 func (lc *LichessConnector) OpenEventStream() (*json.Decoder, error) {
-	req, err := http.NewRequest(http.MethodGet, url+"/stream/event", nil)
+	req, err := http.NewRequest(http.MethodGet, apiUrl+"/stream/event", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +220,7 @@ func (lc *LichessConnector) ListenToEvents(decoder *json.Decoder) {
 
 func (lc *LichessConnector) ListenToGame(game Game) {
 	//https://lichess.org/api/bot/game/stream/{gameId}
-	path := fmt.Sprintf("%s/bot/game/stream/%s", url, game.GameID)
+	path := fmt.Sprintf("%s/bot/game/stream/%s", apiUrl, game.GameID)
 	req, err := http.NewRequest(http.MethodGet, path, nil)
 	if err != nil {
 		fmt.Printf("Error opening GameStream: %s\n", err)

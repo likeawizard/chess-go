@@ -1,13 +1,12 @@
 package eval
 
 import (
-	"math"
 	"sync"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-func (e *EvalEngine) minmax(n *Node, depth int) float64 {
+func (e *EvalEngine) minmax(n *Node, depth int) float32 {
 	if depth == 0 {
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
@@ -17,16 +16,16 @@ func (e *EvalEngine) minmax(n *Node, depth int) float64 {
 		n.Children = n.GetChildNodes()
 	}
 
-	val := math.Inf(-1)
-	var comp CompFunc = math.Max
+	val := negInf
+	var comp CompFunc = Max32
 
 	if n.Position.SideToMove == board.BlackToMove {
-		val = math.Inf(1)
-		comp = math.Min
+		val = posInf
+		comp = Min32
 	}
 
 	var wg sync.WaitGroup
-	temp := make([]float64, len(n.Children))
+	temp := make([]float32, len(n.Children))
 
 	for i := 0; i < len(n.Children); i++ {
 		wg.Add(1)
@@ -46,7 +45,7 @@ func (e *EvalEngine) minmax(n *Node, depth int) float64 {
 	return val
 }
 
-func (e *EvalEngine) minmaxSerial(n *Node, depth int) float64 {
+func (e *EvalEngine) minmaxSerial(n *Node, depth int) float32 {
 	if depth == 0 {
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
@@ -56,12 +55,12 @@ func (e *EvalEngine) minmaxSerial(n *Node, depth int) float64 {
 		n.Children = n.GetChildNodes()
 	}
 
-	val := math.Inf(-1)
-	var comp CompFunc = math.Max
+	val := negInf
+	var comp CompFunc = Max32
 
 	if n.Position.SideToMove == board.BlackToMove {
-		val = math.Inf(1)
-		comp = math.Min
+		val = posInf
+		comp = Min32
 	}
 
 	for i := 0; i < len(n.Children); i++ {

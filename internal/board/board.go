@@ -15,6 +15,34 @@ func (b *Board) Init() {
 	b.ImportFEN(fen)
 }
 
+func (b *Board) Copy() *Board {
+	return &Board{
+		Coords:          b.Coords,
+		SideToMove:      b.SideToMove,
+		CastlingRights:  b.CastlingRights,
+		EnPassantTarget: b.EnPassantTarget,
+		HalfMoveCounter: b.HalfMoveCounter,
+		FullMoveCounter: b.HalfMoveCounter,
+		IsEvaluated:     b.IsEvaluated,
+		CachedEval:      b.CachedEval,
+		EnPassantMoves:  b.EnPassantMoves,
+		TrackMoves:      b.TrackMoves,
+		Moves:           b.Moves,
+	}
+}
+
+// Only copy fields necessary for gametree construction
+func (b *Board) SimpleCopy() *Board {
+	return &Board{
+		Coords:          b.Coords,
+		SideToMove:      b.SideToMove,
+		CastlingRights:  b.CastlingRights,
+		EnPassantTarget: b.EnPassantTarget,
+		HalfMoveCounter: b.HalfMoveCounter,
+		FullMoveCounter: b.HalfMoveCounter,
+	}
+}
+
 func (b *Board) MoveLongAlg(longalg string) {
 	from, to := longAlgToCoords(longalg)
 	if b.VerifyMove(longalg) {
@@ -76,7 +104,7 @@ func (b *Board) autoPromotePawn(to Coord) {
 	}
 }
 
-func (b *Board) AccessCoord(c Coord) int {
+func (b *Board) AccessCoord(c Coord) uint8 {
 	return b.Coords[c.File][c.Rank]
 }
 
