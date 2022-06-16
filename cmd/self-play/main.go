@@ -39,8 +39,13 @@ func main() {
 			for _, move := range candidates {
 				fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())
 			}
+			if best == nil {
+				fmt.Println("No legal moves.")
+				return
+			}
 			b1.MoveLongAlg(best.MoveToPlay)
 			e.PlayMove(best)
+			b1.WritePGNToFile("./dump.pgn")
 			r.Update()
 		}
 	}()
@@ -54,6 +59,7 @@ func RegisterIterrupt(b *board.Board) {
 	go func() {
 		<-c
 		fmt.Println(b.GetMoveList())
+		fmt.Println(b.GeneratePGN())
 		os.Exit(0)
 	}()
 }

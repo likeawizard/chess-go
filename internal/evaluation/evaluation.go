@@ -43,7 +43,7 @@ type EvalEngine struct {
 }
 
 func (n *Node) GetChildNodes() []*Node {
-	moves, captures := n.Position.GetMoves(n.Position.SideToMove)
+	moves, captures := n.Position.GetLegalMoves(n.Position.SideToMove)
 	all := append(captures, moves...)
 	childNodes := make([]*Node, len(all))
 
@@ -110,25 +110,27 @@ func (e *EvalEngine) GetMove() {
 		e.minmax(e.RootNode, e.SearchDepth)
 	case EVAL_ALPHABETA:
 		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf)
-		// e.RootNode.alphabeta(e.SearchDepth, -15, 15)
 	}
 	e.MoveTime = time.Since(start)
 }
 
 func (n *Node) PickBestMove(side byte) *Node {
-	var bestMove *Node
+	if n.Children == nil || len(n.Children) == 0 {
+		return nil
+	}
+	var bestMove *Node = n.Children[0]
 	bestScore := negInf
 	switch side {
 	case board.WhiteToMove:
 		for _, c := range n.Children {
-			if c.Evaluation > bestScore {
+			if c.Evaluation >= bestScore {
 				bestScore, bestMove = c.Evaluation, c
 			}
 		}
 	case board.BlackToMove:
 		bestScore = posInf
 		for _, c := range n.Children {
-			if c.Evaluation < bestScore {
+			if c.Evaluation <= bestScore {
 				bestScore, bestMove = c.Evaluation, c
 			}
 		}
@@ -146,6 +148,7 @@ func min(a, b int) int {
 
 func (n *Node) PickBestMoves(num int) []*Node {
 	moves := n.Children
+	num = min(num, len(moves))
 	sort.Slice(moves, func(i, j int) bool {
 		if n.Position.SideToMove == board.WhiteToMove {
 			return moves[i].Evaluation > moves[j].Evaluation
@@ -154,7 +157,7 @@ func (n *Node) PickBestMoves(num int) []*Node {
 		}
 
 	})
-	return moves[:min(num, len(moves))]
+	return moves[:num]
 }
 
 func (n *Node) ConstructLine() []string {
@@ -164,6 +167,9 @@ func (n *Node) ConstructLine() []string {
 	current := n
 	for current.Children != nil {
 		best := current.PickBestMove(side)
+		if best == nil {
+			break
+		}
 		line = append(line, best.MoveToPlay)
 		switch side {
 		case board.WhiteToMove:

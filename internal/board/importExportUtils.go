@@ -2,6 +2,7 @@ package board
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -94,4 +95,69 @@ func parsePosition(position string) ([8][8]uint8, error) {
 		}
 	}
 	return c, nil
+}
+
+func (b *Board) WritePGNToFile(path string) {
+	os.WriteFile(path, []byte(b.GeneratePGN()), 0644)
+}
+
+func (b *Board) GeneratePGN() string {
+	pgn := ""
+	moves := b.GetMoveList()
+	bb := &Board{}
+	bb.Init()
+	for n, move := range moves {
+		if n%2 == 0 {
+			pgn += fmt.Sprintf("%d. ", bb.FullMoveCounter)
+		}
+		pgn += bb.MoveToPretty(move) + " "
+		bb.MoveLongAlg(move)
+	}
+	return pgn
+}
+
+func (b *Board) MoveToPretty(move string) (pretty string) {
+	from, to := longAlgToCoords(move)
+	targetPiece := b.AccessCoord(to)
+	piece := b.AccessCoord(from)
+	moves, captures := b.GetMovesNoCastling(b.SideToMove)
+	all := append(moves, captures...)
+	switch {
+	case piece == P || piece == p:
+		pretty = move[2:]
+		if move[:1] != move[2:3] {
+			pretty = move[:1] + "x" + pretty
+		}
+	case (piece == K || piece == k) && move == CastlingMoves[0] || move == CastlingMoves[2]:
+		return "O-O"
+	case (piece == K || piece == k) && move == CastlingMoves[1] || move == CastlingMoves[3]:
+		return "O-O-O"
+	default:
+		pretty = Pieces[(piece-1)%PieceOffset]
+		pretty += b.Disambiguate(move, all)
+		if targetPiece > 0 {
+			pretty += "x"
+		}
+		pretty += move[2:]
+	}
+
+	return
+}
+
+func (b *Board) Disambiguate(move string, moves []string) string {
+	dis := ""
+	from, to := longAlgToCoords(move)
+	for _, m := range moves {
+		f, t := longAlgToCoords(m)
+		if m[:2] == move[:2] || b.AccessCoord(from) != b.AccessCoord(f) {
+			continue
+		}
+		if f.File == from.File && to.Equal(&t) {
+			dis += move[1:2]
+		}
+		if f.Rank == from.Rank && to.Equal(&t) {
+			dis += move[0:1]
+		}
+	}
+	return dis
 }

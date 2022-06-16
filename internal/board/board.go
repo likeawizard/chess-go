@@ -5,6 +5,7 @@ import (
 )
 
 var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
+var CastlingRights = [4]string{wOO, wOOO, bOO, bOOO}
 var Files = [8]string{"a", "b", "c", "d", "e", "f", "g", "h"}
 
 func (b *Board) Init() {
@@ -94,7 +95,7 @@ func (b *Board) castle(move string) {
 }
 
 func (b *Board) autoPromotePawn(to Coord) {
-	piece, _ := GetPiece(*b, to)
+	piece, _ := GetPiece(b, to)
 	if piece == P && to.Rank == 7 {
 		b.Coords[to.File][to.Rank] = Q
 	}
@@ -128,6 +129,10 @@ func fileToCoord(file rune) int {
 	return 0
 }
 
+func (c *Coord) Equal(a *Coord) bool {
+	return c.File == a.File && c.Rank == a.Rank
+}
+
 func CoordToAlg(c Coord) string {
 	return Files[c.File] + string(rune(c.Rank+1+'0'))
 }
@@ -148,7 +153,6 @@ func (b *Board) SetTrackMoves(trackmoves bool) {
 
 func (b *Board) TrackMove(move string) {
 	b.Moves = append(b.Moves, move)
-	// fmt.Println(b.Moves)
 }
 
 func (b *Board) GetMoveList() []string {

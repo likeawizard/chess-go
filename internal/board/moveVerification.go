@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-func (b Board) VerifyMove(longalg string) bool {
+func (b *Board) VerifyMove(longalg string) bool {
 	from, _ := longAlgToCoords(longalg)
 	moves, captures := b.GetAvailableMoves(from)
 
@@ -30,21 +30,52 @@ func (b Board) VerifyMove(longalg string) bool {
 
 }
 
-func isOpponentPiece(b Board, source, target Coord) bool {
+func isOpponentPiece(b *Board, source, target Coord) bool {
 	piece, color := GetPiece(b, target)
 	_, ownColor := GetPiece(b, source)
 	return piece != 0 && color != ownColor
 }
 
-func (b Board) GetAvailableMoves(c Coord) (availableMoves, availableCaptures []string) {
+func (b *Board) IsInCheckAfterMove(move string) bool {
+	bb := b.Copy()
+	side := bb.SideToMove
+	bb.MoveLongAlg(move)
+	king := CoordToAlg(bb.GetKing(side))
+	_, captures := bb.GetMovesNoCastling(bb.SideToMove)
+	cDest := movesToDestinationSquaresString(captures)
+	if strings.Contains(cDest, king) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (b *Board) PruneIllegal(moves, captures []string) ([]string, []string) {
+	legalMoves := make([]string, 0)
+	legalCaptures := make([]string, 0)
+	for _, move := range moves {
+		if !b.IsInCheckAfterMove(move) {
+			legalMoves = append(legalMoves, move)
+		}
+	}
+	for _, capture := range captures {
+		if !b.IsInCheckAfterMove(capture) {
+			legalCaptures = append(legalCaptures, capture)
+		}
+	}
+
+	return legalMoves, legalCaptures
+}
+
+func (b *Board) GetAvailableMoves(c Coord) (availableMoves, availableCaptures []string) {
 	return b.GetAvailableMovesRaw(c, false)
 }
 
-func (b Board) GetAvailableMovesExcludeCastling(c Coord) (availableMoves, availableCaptures []string) {
+func (b *Board) GetAvailableMovesExcludeCastling(c Coord) (availableMoves, availableCaptures []string) {
 	return b.GetAvailableMovesRaw(c, true)
 }
 
-func (b Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMoves, availableCaptures []string) {
+func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMoves, availableCaptures []string) {
 	piece := b.AccessCoord(c)
 	plainPiece := piece % PieceOffset
 
@@ -66,9 +97,11 @@ func (b Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMov
 	}
 }
 
-func (b Board) GetPawnMoves(c Coord) (moves, captures []string) {
+var targetCoord Coord
+var pawnCaptures [2][2]int = [2][2]int{{1, 1}, {-1, 1}}
+
+func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
-	pawnCaptures := [2][2]int{{1, 1}, {-1, 1}}
 	var isFirstMove bool
 	var direction = 1
 
@@ -87,89 +120,138 @@ func (b Board) GetPawnMoves(c Coord) (moves, captures []string) {
 		moves = append(moves, CoordsToMove(c, Coord{c.File, c.Rank + 2*direction}))
 	}
 
-	for i := 0; i < 2; i++ {
-		targetCoord := Coord{c.File + pawnCaptures[i][0], c.Rank + (direction * pawnCaptures[i][1])}
-		if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
+	if c.File > 0 && c.File < 7 {
+		targetCoord = Coord{c.File + 1, c.Rank + direction}
+		if isOpponentPiece(b, c, targetCoord) {
+			captures = append(captures, CoordsToMove(c, targetCoord))
+		}
+		targetCoord = Coord{c.File - 1, c.Rank + direction}
+		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
 		}
 	}
 
-	for i := 0; i < 2; i++ {
-		targetCoord := Coord{c.File + pawnCaptures[i][0], c.Rank + (direction * pawnCaptures[i][1])}
-		if CoordInBounds(targetCoord) && CoordToAlg(targetCoord) == b.EnPassantTarget {
+	if c.File == 0 {
+		targetCoord = Coord{c.File + 1, c.Rank + direction}
+		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
+		}
+	}
+
+	if c.File == 7 {
+		targetCoord = Coord{c.File - 1, c.Rank + direction}
+		if isOpponentPiece(b, c, targetCoord) {
+			captures = append(captures, CoordsToMove(c, targetCoord))
+		}
+	}
+
+	if (c.Rank == 3 || c.Rank == 4) && b.EnPassantTarget != "-" {
+		if c.File > 0 && c.File < 7 {
+			targetCoord = Coord{c.File + 1, c.Rank + direction}
+			if CoordToAlg(targetCoord) == b.EnPassantTarget {
+				captures = append(captures, CoordsToMove(c, targetCoord))
+			}
+			targetCoord = Coord{c.File - 1, c.Rank + direction}
+			if CoordToAlg(targetCoord) == b.EnPassantTarget {
+				captures = append(captures, CoordsToMove(c, targetCoord))
+			}
+		}
+
+		if c.File == 0 {
+			targetCoord = Coord{c.File + 1, c.Rank + direction}
+			if CoordToAlg(targetCoord) == b.EnPassantTarget {
+				captures = append(captures, CoordsToMove(c, targetCoord))
+			}
+		}
+
+		if c.File == 7 {
+			targetCoord = Coord{c.File - 1, c.Rank + direction}
+			if CoordToAlg(targetCoord) == b.EnPassantTarget {
+				captures = append(captures, CoordsToMove(c, targetCoord))
+			}
 		}
 	}
 
 	return
 }
 
-func (b Board) GetBishopMoves(c Coord) (moves, captures []string) {
-	var ul, ur, dl, dr bool
-	var targetCoord Coord
-	for i := 1; i < 7; i++ {
-		if !ul {
+func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
+	var ul, ur, dl, dr bool = true, true, true, true
+	for i := 1; i < 8; i++ {
+		if ur {
+			ur = c.Rank+i <= 7 && c.File+i <= 7
 			targetCoord = Coord{c.File + i, c.Rank + i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if ur && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				ul = true
+			} else if ur && isOpponentPiece(b, c, targetCoord) {
+				ur = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				ul = true
+				ur = false
 			}
 		}
-		if !ur {
+		if dr {
+			dr = c.Rank-i >= 0 && c.File+i <= 7
 			targetCoord = Coord{c.File + i, c.Rank - i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if dr && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				ur = true
+			} else if dr && isOpponentPiece(b, c, targetCoord) {
+				dr = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				ur = true
+				dr = false
 			}
 		}
 
-		if !dl {
+		if ul {
+			ul = c.Rank+i <= 7 && c.File-i >= 0
 			targetCoord = Coord{c.File - i, c.Rank + i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if ul && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				dl = true
+			} else if ul && isOpponentPiece(b, c, targetCoord) {
+				ul = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				dl = true
+				ul = false
 			}
 		}
 
-		if !dr {
+		if dl {
+			dl = c.Rank-i >= 0 && c.File-i >= 0
 			targetCoord = Coord{c.File - i, c.Rank - i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if dl && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				dr = true
+			} else if dl && isOpponentPiece(b, c, targetCoord) {
+				dl = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				dr = true
+				dl = false
 			}
+		}
+		if !ur && !ul && !dr && !dl {
+			break
 		}
 
 	}
 	return
 }
 
-func (b Board) GetKnightMoves(c Coord) (moves, captures []string) {
-	var knightMoves = [8][2]int{{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}}
+var knightMoves = [8][2]int{{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}}
+
+func (b *Board) GetKnightMoves(c Coord) (moves, captures []string) {
+
 	var targetCoord Coord
 
 	for i := 0; i < 8; i++ {
 		targetCoord = Coord{
 			c.File + knightMoves[i][0], c.Rank + knightMoves[i][1],
 		}
-		if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+		if !CoordInBounds(targetCoord) {
+			continue
+		}
+		if b.AccessCoord(targetCoord) == 0 {
 			moves = append(moves, CoordsToMove(c, targetCoord))
-		} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
+		} else if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
 		}
 
@@ -178,62 +260,69 @@ func (b Board) GetKnightMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b Board) GetRookMoves(c Coord) (moves, captures []string) {
-	var u, d, l, r bool
+func (b *Board) GetRookMoves(c Coord) (moves, captures []string) {
+	var u, d, l, r bool = true, true, true, true
 	var targetCoord Coord
-	for i := 1; i < 7; i++ {
-		if !u {
+	for i := 1; i < 8; i++ {
+		if u {
+			u = c.Rank+i <= 7
 			targetCoord = Coord{c.File, c.Rank + i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if u && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				u = true
+			} else if u && isOpponentPiece(b, c, targetCoord) {
+				u = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				u = true
+				u = false
 			}
 		}
-		if !d {
+		if d {
+			d = c.Rank-i >= 0
 			targetCoord = Coord{c.File, c.Rank - i}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if d && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				d = true
+			} else if d && isOpponentPiece(b, c, targetCoord) {
+				d = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				d = true
+				d = false
 			}
 		}
 
-		if !l {
+		if l {
+			l = c.File-i >= 0
 			targetCoord = Coord{c.File - i, c.Rank}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if l && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				l = true
+			} else if l && isOpponentPiece(b, c, targetCoord) {
+				l = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				l = true
+				l = false
 			}
 		}
 
-		if !r {
+		if r {
+			r = c.File+i <= 7
 			targetCoord = Coord{c.File + i, c.Rank}
-			if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
+			if r && b.AccessCoord(targetCoord) == 0 {
 				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-				r = true
+			} else if r && isOpponentPiece(b, c, targetCoord) {
+				r = false
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			} else {
-				r = true
+				r = false
 			}
+		}
+		if !u && !d && !l && !r {
+			break
 		}
 
 	}
 	return
 }
 
-func (b Board) GetQueenMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetQueenMoves(c Coord) (moves, captures []string) {
 	bishopMoves, bishopCaptures := b.GetBishopMoves(c)
 	rookMoves, rookCaptures := b.GetRookMoves(c)
 	moves = append(bishopMoves, rookMoves...)
@@ -241,7 +330,7 @@ func (b Board) GetQueenMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []string) {
+func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []string) {
 	var kingMoves = [8][2]int{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
 	var targetCoord Coord
 
@@ -312,16 +401,16 @@ func movesToDestinationSquaresString(moves []string) (destination string) {
 	return destination
 }
 
-func (b Board) isCastling(move string) bool {
-	for _, castlingMove := range CastlingMoves {
-		if move == castlingMove {
+func (b *Board) isCastling(move string) bool {
+	for i, castlingMove := range CastlingMoves {
+		if move == castlingMove && strings.Contains(b.CastlingRights, CastlingRights[i]) {
 			return true
 		}
 	}
 	return false
 }
 
-func (b Board) isEnPassant(move string) bool {
+func (b *Board) isEnPassant(move string) bool {
 	from, to := move[:2], move[2:]
 	piece := b.AccessCoord(AlgToCoord(from))
 	return (piece == 1 || piece == 7) && to == b.EnPassantTarget

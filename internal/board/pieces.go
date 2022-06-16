@@ -14,7 +14,7 @@ func PieceSymbolToInt(piece string) uint8 {
 	}
 	return 0
 }
-func GetKing(b Board, color byte) (c Coord) {
+func (b *Board) GetKing(color byte) (c Coord) {
 	c.File = 8
 	c.Rank = 8
 	var king uint8 = 6
@@ -32,7 +32,7 @@ func GetKing(b Board, color byte) (c Coord) {
 	return
 }
 
-func GetPieces(b Board, color byte) (pieces []Coord) {
+func (b *Board) GetPieces(color byte) (pieces []Coord) {
 	for f, file := range b.Coords {
 		for r := range file {
 			coord := Coord{f, r}
@@ -45,7 +45,7 @@ func GetPieces(b Board, color byte) (pieces []Coord) {
 	return
 }
 
-func GetPiece(b Board, coord Coord) (piece uint8, color byte) {
+func GetPiece(b *Board, coord Coord) (piece uint8, color byte) {
 	piece = b.AccessCoord(coord)
 	if piece <= PieceOffset {
 		color = WhiteToMove
@@ -55,63 +55,21 @@ func GetPiece(b Board, coord Coord) (piece uint8, color byte) {
 	return
 }
 
-func (b Board) MoveToPretty(move string) (pretty string) {
-	from, to := longAlgToCoords(move)
-	targetPiece := b.AccessCoord(to)
-	piece := b.AccessCoord(from)
-	switch {
-	case piece == P || piece == p:
-		pretty = move[2:]
-		if move[:1] != move[2:3] {
-			pretty = move[:1] + "x" + pretty
-		}
-	case move == CastlingMoves[0] || move == CastlingMoves[2]:
-		return "O-O-O"
-	case move == CastlingMoves[1] || move == CastlingMoves[3]:
-		return "O-O"
-	default:
-		pretty = Pieces[(piece-1)%PieceOffset]
-		if targetPiece > 0 {
-			pretty += "x"
-		}
-		pretty += move[2:]
-	}
-
-	return
+func (b *Board) GetLegalMoves(color byte) ([]string, []string) {
+	m, c := b.GetMoves(color)
+	return b.PruneIllegal(m, c)
 }
 
-func (b Board) hasRankConflict(from Coord) bool {
-	identicalPieceCount := 0
-	piece := b.AccessCoord(from)
-	for i := 0; i < 8; i++ {
-		if b.Coords[from.File][i] == piece {
-			identicalPieceCount++
-		}
-	}
-	return identicalPieceCount > 1
-}
-
-func (b Board) hasFileConflict(from Coord) bool {
-	identicalPieceCount := 0
-	piece := b.AccessCoord(from)
-	for i := 0; i < 8; i++ {
-		if b.Coords[i][from.Rank] == piece {
-			identicalPieceCount++
-		}
-	}
-	return identicalPieceCount > 1
-}
-
-func (b Board) GetMoves(color byte) (moves, captures []string) {
+func (b *Board) GetMoves(color byte) (moves, captures []string) {
 	return b.getMoves(color, false)
 }
 
-func (b Board) GetMovesNoCastling(color byte) (moves, captures []string) {
+func (b *Board) GetMovesNoCastling(color byte) (moves, captures []string) {
 	return b.getMoves(color, true)
 }
 
-func (b Board) getMoves(color byte, excludeCastling bool) (moves, captures []string) {
-	pieces := GetPieces(b, color)
+func (b *Board) getMoves(color byte, excludeCastling bool) (moves, captures []string) {
+	pieces := b.GetPieces(color)
 	for _, piece := range pieces {
 		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)
 		moves = append(moves, m...)

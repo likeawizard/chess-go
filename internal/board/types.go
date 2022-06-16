@@ -34,8 +34,6 @@ type Coord struct {
 	Rank int
 }
 
-const ()
-
 const (
 	empty uint8 = 0
 	P     uint8 = 1
@@ -59,10 +57,8 @@ const (
 
 const (
 	startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-	// WhiteToMove = "w"
-	// BlackToMove = "b"
-	wOO  = "K"
-	wOOO = "Q"
-	bOO  = "k"
-	bOOO = "q"
+	wOO         = "K"
+	wOOO        = "Q"
+	bOO         = "k"
+	bOOO        = "q"
 )
