@@ -107,9 +107,9 @@ func (e *EvalEngine) GetMove() {
 	start := time.Now()
 	switch e.Algorithm {
 	case EVAL_MINMAX:
-		e.minmax(e.RootNode, e.SearchDepth)
+		e.minmaxSerial(e.RootNode, e.SearchDepth, e.RootNode.Position.SideToMove == board.WhiteToMove)
 	case EVAL_ALPHABETA:
-		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf)
+		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.SideToMove == board.WhiteToMove)
 	}
 	e.MoveTime = time.Since(start)
 }

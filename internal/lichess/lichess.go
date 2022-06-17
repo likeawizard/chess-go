@@ -271,20 +271,22 @@ func (lc *LichessConnector) getActiveGame(gameID string) (*NowPlaying, error) {
 
 func (lc *LichessConnector) HandleMoveQueue() {
 	for g := range lc.MoveQueue {
-		fmt.Printf("Pondering on move: %v\n", g)
-		b := &board.Board{}
-		b.Init()
-		b.ImportFEN(g.Fen)
-		e, _ := eval.NewEvalEngine(b)
-		e.GetMove()
-		best := e.RootNode.PickBestMove(b.SideToMove)
-		move := best.MoveToPlay
+		go func(g MoveQueue) {
+			fmt.Printf("Pondering on move: %v\n", g)
+			b := &board.Board{}
+			b.Init()
+			b.ImportFEN(g.Fen)
+			e, _ := eval.NewEvalEngine(b)
+			e.GetMove()
+			best := e.RootNode.PickBestMove(b.SideToMove)
+			move := best.MoveToPlay
 
-		fmt.Printf("Making %s move in %s (FEN: %s )\n", move, g.GameID, g.Fen)
-		err := lc.MakeMove(g.GameID, move)
-		if err != nil {
-			fmt.Printf("Illegal move - resigning.\n")
-			lc.ResignGame(g.GameID)
-		}
+			fmt.Printf("Making %s move in %s (FEN: %s )\n", move, g.GameID, g.Fen)
+			err := lc.MakeMove(g.GameID, move)
+			if err != nil {
+				fmt.Printf("Illegal move - resigning.\n")
+				lc.ResignGame(g.GameID)
+			}
+		}(g)
 	}
 }

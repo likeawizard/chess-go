@@ -41,6 +41,7 @@ func getPieceSpecificScore(piece uint8, c board.Coord, color byte) float32 {
 }
 
 func getPawnScore(c board.Coord, color byte) float32 {
+	//add structure modifiers - doubled, passed, protected
 	return getPawnAdvancementScore(c, color) + getCentralPawn(c)
 }
 
@@ -138,15 +139,20 @@ func SideDependantEval(e *EvalEngine, b *board.Board) float32 {
 }
 
 func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
-	if b.IsEvaluated {
-		CachedEvals++
-		return b.CachedEval
-	}
+	inCheck := b.IsInCheck(b.SideToMove)
+	m, c := b.GetLegalMoves(b.SideToMove)
+	all := append(m, c...)
 
-	kingDeadScore, isDead := kingDeadScore(b)
-
-	if isDead {
-		return kingDeadScore
+	//Mate = +/-Inf score
+	if inCheck && len(all) == 0 {
+		if b.SideToMove == board.WhiteToMove {
+			return negInf
+		} else {
+			return posInf
+		}
+		//Stale mate = 0 score
+	} else if len(all) == 0 {
+		return 0
 	}
 
 	whitePieces := b.GetPieces(board.WhiteToMove)

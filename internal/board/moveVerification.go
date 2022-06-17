@@ -1,6 +1,7 @@
 package board
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -40,14 +41,7 @@ func (b *Board) IsInCheckAfterMove(move string) bool {
 	bb := b.Copy()
 	side := bb.SideToMove
 	bb.MoveLongAlg(move)
-	king := CoordToAlg(bb.GetKing(side))
-	_, captures := bb.GetMovesNoCastling(bb.SideToMove)
-	cDest := movesToDestinationSquaresString(captures)
-	if strings.Contains(cDest, king) {
-		return true
-	} else {
-		return false
-	}
+	return bb.IsInCheck(side)
 }
 
 func (b *Board) PruneIllegal(moves, captures []string) ([]string, []string) {
@@ -97,10 +91,151 @@ func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMo
 	}
 }
 
-var targetCoord Coord
+func (b *Board) IsInCheck(color byte) bool {
+	var targetCoord Coord
+	iswhite := color == WhiteToMove
+	pawnDirection := -1
+	offset := uint8(0)
+	king := b.GetKing(color)
+	if king.Rank == 8 {
+		fmt.Println(b.ExportFEN())
+	}
+	if iswhite {
+		pawnDirection = 1
+		offset = 6
+	}
+
+	targetCoord = Coord{File: king.File + 1, Rank: king.Rank + pawnDirection}
+	if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == P+offset {
+		return true
+	}
+	targetCoord = Coord{File: king.File - 1, Rank: king.Rank + pawnDirection}
+	if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == P+offset {
+		return true
+	}
+
+	for _, knightMove := range knightMoves {
+		targetCoord = Coord{File: king.File + knightMove[0], Rank: king.Rank + knightMove[1]}
+		if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == N+offset {
+			return true
+		}
+	}
+
+	var n, w, s, e, ne, nw, se, sw bool = true, true, true, true, true, true, true, true
+	var piece uint8
+	for i := 1; i < 8; i++ {
+		if n {
+			n = king.Rank+i <= 7
+			if n {
+				piece = b.AccessCoord(Coord{king.File, king.Rank + i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					n = false
+				}
+			}
+		}
+		if s {
+			s = king.Rank-i >= 0
+			if s {
+				piece = b.AccessCoord(Coord{king.File, king.Rank - i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					s = false
+				}
+			}
+		}
+		if w {
+			w = king.File+i <= 7
+			if w {
+				piece = b.AccessCoord(Coord{king.File + i, king.Rank})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					w = false
+				}
+			}
+		}
+		if e {
+			e = king.File-i >= 0
+			if e {
+				piece = b.AccessCoord(Coord{king.File - i, king.Rank})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					e = false
+				}
+			}
+		}
+		if nw {
+			nw = king.File+i <= 7 && king.Rank+i <= 7
+			if nw {
+				piece = b.AccessCoord(Coord{king.File + i, king.Rank + i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					nw = false
+				}
+			}
+		}
+		if ne {
+			ne = king.File-i >= 0 && king.Rank+i <= 7
+			if ne {
+				piece = b.AccessCoord(Coord{king.File - i, king.Rank + i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					ne = false
+				}
+			}
+		}
+		if se {
+			se = king.File-i >= 0 && king.Rank-i >= 0
+			if se {
+				piece = b.AccessCoord(Coord{king.File - i, king.Rank - i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					se = false
+				}
+			}
+		}
+		if sw {
+			sw = king.File+i <= 7 && king.Rank-i >= 0
+			if sw {
+				piece = b.AccessCoord(Coord{king.File + i, king.Rank - i})
+				if piece == 0 {
+
+				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
+					return true
+				} else {
+					sw = false
+				}
+			}
+		}
+	}
+	return false
+}
+
 var pawnCaptures [2][2]int = [2][2]int{{1, 1}, {-1, 1}}
 
 func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
+	var targetCoord Coord
 	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
 	var isFirstMove bool
 	var direction = 1
@@ -152,7 +287,7 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			}
 			targetCoord = Coord{c.File - 1, c.Rank + direction}
-			if CoordToAlg(targetCoord) == b.EnPassantTarget {
+			if CoordInBounds(targetCoord) && CoordToAlg(targetCoord) == b.EnPassantTarget {
 				captures = append(captures, CoordsToMove(c, targetCoord))
 			}
 		}
@@ -177,6 +312,7 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 
 func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
 	var ul, ur, dl, dr bool = true, true, true, true
+	var targetCoord Coord
 	for i := 1; i < 8; i++ {
 		if ur {
 			ur = c.Rank+i <= 7 && c.File+i <= 7
@@ -239,7 +375,6 @@ func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
 var knightMoves = [8][2]int{{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}}
 
 func (b *Board) GetKnightMoves(c Coord) (moves, captures []string) {
-
 	var targetCoord Coord
 
 	for i := 0; i < 8; i++ {

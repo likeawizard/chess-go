@@ -1,12 +1,6 @@
 package eval
 
-import (
-	"sync"
-
-	"github.com/likeawizard/chess-go/internal/board"
-)
-
-func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float32) float32 {
+func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32, isWhite bool) float32 {
 	if depth == 0 {
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
@@ -16,74 +10,38 @@ func (e *EvalEngine) alphabeta(n *Node, depth int, alpha, beta float32) float32 
 		n.Children = n.GetChildNodes()
 	}
 
-	val := negInf
-	var comp CompFunc = Max32
+	var value float32
+	if isWhite {
+		value = negInf
+		for i := 0; i < len(n.Children); i++ {
 
-	if n.Position.SideToMove == board.BlackToMove {
-		val = posInf
-		comp = Min32
-	}
+			value = Max32(value, e.alphabetaSerial(n.Children[i], depth-1, alpha, beta, false))
 
-	var wg sync.WaitGroup
-	temp := make([]float32, len(n.Children))
-
-	for i := 0; i < len(n.Children); i++ {
-
-		if e.SearchDepth-depth < 1 {
-			wg.Add(1)
-			e.MaxGoroutines <- struct{}{}
-			go func(i int) {
-				defer wg.Done()
-
-				temp[i] = e.alphabeta(n.Children[i], depth-1, alpha, beta)
-				<-e.MaxGoroutines
-			}(i)
-		} else {
-			temp[i] = e.alphabetaSerial(n.Children[i], depth-1, alpha, beta)
+			if value >= beta {
+				n = nil
+				break
+			}
+			alpha = Max32(alpha, value)
+		}
+		if n != nil {
+			n.Evaluation = value
 		}
 
-	}
+		return value
+	} else {
+		value = posInf
+		for i := 0; i < len(n.Children); i++ {
+			value = Min32(value, e.alphabetaSerial(n.Children[i], depth-1, alpha, beta, true))
 
-	wg.Wait()
-
-	for i := 0; i < len(temp); i++ {
-		val = comp(val, temp[i])
-	}
-
-	n.Evaluation = val
-	return val
-
-}
-
-func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32) float32 {
-	if depth == 0 {
-		n.Evaluation = e.EvalFunction(e, n.Position)
-		return n.Evaluation
-	}
-
-	if n.Children == nil {
-		n.Children = n.GetChildNodes()
-	}
-
-	val := negInf
-	var comp CompFunc = Max32
-	var compB CompFuncBool = gte
-	var selectivecomp SelectiveCompFunc = maxA
-
-	if n.Position.SideToMove == board.BlackToMove {
-		val = posInf
-		comp = Min32
-		compB = lte
-		selectivecomp = minB
-	}
-
-	for i := 0; i < len(n.Children); i++ {
-		val = comp(val, e.alphabetaSerial(n.Children[i], depth-1, alpha, beta))
-		alpha, beta = selectivecomp(val, alpha, beta)
-		if compB(val, alpha, beta) {
-			break
+			if value <= alpha {
+				n = nil
+				break
+			}
+			beta = Min32(beta, value)
 		}
+		if n != nil {
+			n.Evaluation = value
+		}
+		return value
 	}
-	n.Evaluation = val
-	return val
 }
