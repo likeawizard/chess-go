@@ -3,3 +3,5 @@
 /self-play
 /analyze
 /lichess
+/single-eval
+/dump.pgn

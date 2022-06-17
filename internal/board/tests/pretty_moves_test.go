@@ -55,3 +55,27 @@ func TestSimplePieceMoveAndRankConflict(t *testing.T) {
 		}
 	})
 }
+
+func TestSimplePieceMoveAndFileConflict(t *testing.T) {
+	var b board.Board
+	move := "f2g2"
+	pretty := "Rg2"
+	b.ImportFEN("1k6/5R2/8/8/8/8/5R2/1K6 w - - 0 1")
+
+	t.Run("Rook moves to g2 no conflict", func(t *testing.T) {
+		prettified := b.MoveToPretty(move)
+		if prettified != pretty {
+			t.Errorf("Got: %s Want: %s", prettified, pretty)
+		}
+	})
+
+	move = "f2f4"
+	pretty = "R2f4"
+
+	t.Run("Need rank disambiguation", func(t *testing.T) {
+		prettified := b.MoveToPretty(move)
+		if prettified != pretty {
+			t.Errorf("Got: %s Want: %s", prettified, pretty)
+		}
+	})
+}

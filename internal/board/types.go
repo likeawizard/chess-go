@@ -16,14 +16,14 @@ package board
 12 bk
 */
 type Board struct {
-	Coords          [8][8]int
-	SideToMove      string
+	Coords          [8][8]uint8
+	SideToMove      byte
 	CastlingRights  string
 	EnPassantTarget string
-	HalfMoveCounter int
-	FullMoveCounter int
+	HalfMoveCounter uint8
+	FullMoveCounter uint8
 	IsEvaluated     bool
-	CachedEval      float64
+	CachedEval      float32
 	EnPassantMoves  []string
 	TrackMoves      bool
 	Moves           []string
@@ -35,25 +35,28 @@ type Coord struct {
 }
 
 const (
-	empty = 0
-	P     = 1
-	B     = 2
-	N     = 3
-	R     = 4
-	Q     = 5
-	K     = 6
-	p     = 7
-	b     = 8
-	n     = 9
-	r     = 10
-	q     = 11
-	k     = 12
+	empty uint8 = 0
+	P     uint8 = 1
+	B     uint8 = 2
+	N     uint8 = 3
+	R     uint8 = 4
+	Q     uint8 = 5
+	K     uint8 = 6
+	p     uint8 = 7
+	b     uint8 = 8
+	n     uint8 = 9
+	r     uint8 = 10
+	q     uint8 = 11
+	k     uint8 = 12
+)
+
+const (
+	WhiteToMove byte = 'w'
+	BlackToMove byte = 'b'
 )
 
 const (
 	startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-	WhiteToMove = "w"
-	BlackToMove = "b"
 	wOO         = "K"
 	wOOO        = "Q"
 	bOO         = "k"

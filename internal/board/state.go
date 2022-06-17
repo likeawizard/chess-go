@@ -37,7 +37,7 @@ func (b *Board) updateCastlingRights(from Coord) {
 }
 
 func (b *Board) updateEnPassantTarget(from, to Coord) {
-	piece, _ := GetPiece(*b, to)
+	piece, _ := GetPiece(b, to)
 
 	isPawnMove := piece == P || piece == p
 	isDoubleMove := int(math.Abs(float64(from.Rank-to.Rank))) == 2

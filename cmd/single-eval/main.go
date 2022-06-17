@@ -10,7 +10,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
-	"github.com/likeawizard/chess-go/internal/render"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -29,26 +28,14 @@ func main() {
 		fmt.Printf("Error importing FEN: %s, %s\n", b.ExportFEN(), *fen)
 		return
 	}
+	eval.DEBUG = true
 	e, err := eval.NewEvalEngine(b)
 	if err != nil {
 		fmt.Printf("Unable to load EvalEngine: %s\n", err)
 		return
 	}
 
-	r := render.New()
-	r.InitRender(b, e)
-	RegisterIterrupt(b)
-
-	e.GetMove()
-	best := e.RootNode.PickBestMove(b.SideToMove)
-	candidates := e.RootNode.PickBestMoves(3)
-	for _, move := range candidates {
-		fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())
-	}
-	b.MoveLongAlg(best.MoveToPlay)
-	e.PlayMove(best)
-	fmt.Println(best.MoveToPlay)
-	r.Update()
+	fmt.Println(eval.GetEvaluation(e, b))
 }
 
 func RegisterIterrupt(b *board.Board) {
