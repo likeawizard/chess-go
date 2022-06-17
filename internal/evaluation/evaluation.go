@@ -1,12 +1,11 @@
 package eval
 
 import (
-	"os"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/config"
 )
 
 var DEBUG = false
@@ -72,33 +71,14 @@ func NewRootNode(b *board.Board) *Node {
 	return node
 }
 
-func NewEvalEngine(b *board.Board) (*EvalEngine, error) {
-	debug, err := strconv.ParseBool(os.Getenv("EVALUATION_DEBUG"))
-	if err != nil {
-		return nil, err
-	}
-	depth, _ := strconv.Atoi(os.Getenv("EVALUATION_DEPTH"))
-	if err != nil {
-		return nil, err
-	}
-	max, _ := strconv.Atoi(os.Getenv("EVALUATION_MAX_GOROUTINES"))
-	if err != nil {
-		return nil, err
-	}
-	algo := os.Getenv("EVALUATION_ALGO")
-	if err != nil {
-		return nil, err
-	}
-	if algo != EVAL_ALPHABETA && algo != EVAL_MINMAX {
-		algo = EVAL_ALPHABETA
-	}
+func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	return &EvalEngine{
 		RootNode:      NewRootNode(b),
 		EvalFunction:  GetEvaluation,
-		DebugMode:     debug,
-		SearchDepth:   depth,
-		MaxGoroutines: make(chan struct{}, max),
-		Algorithm:     algo,
+		DebugMode:     c.Engine.Debug,
+		SearchDepth:   c.Engine.MaxDepth,
+		MaxGoroutines: make(chan struct{}, c.Engine.MaxGoRoutines),
+		Algorithm:     c.Engine.Algorithm,
 	}, nil
 }
 

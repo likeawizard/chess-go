@@ -105,7 +105,7 @@ func (b *Board) GeneratePGN() string {
 	pgn := ""
 	moves := b.GetMoveList()
 	bb := &Board{}
-	bb.Init()
+	bb.InitDefault()
 	for n, move := range moves {
 		if n%2 == 0 {
 			pgn += fmt.Sprintf("%d. ", bb.FullMoveCounter)

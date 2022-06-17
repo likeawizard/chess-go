@@ -6,29 +6,28 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
 	"github.com/likeawizard/chess-go/internal/render"
 	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
-	err := godotenv.Load()
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Printf("Error loading .env: %s\n", err)
-		return
+		fmt.Printf("Failed to load app config: %s\n", err)
 	}
 	b1 := &board.Board{}
-	b1.Init()
-	e, err := eval.NewEvalEngine(b1)
+	b1.Init(cfg)
+	e, err := eval.NewEvalEngine(b1, cfg)
 	if err != nil {
 		fmt.Printf("Unable to load EvalEngine: %s\n", err)
 		return
 	}
 	b1.SetTrackMoves(true)
 
-	r := render.New()
+	r := render.New(cfg)
 	r.InitRender(b1, e)
 	RegisterIterrupt(b1)
 	go func() {
