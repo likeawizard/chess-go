@@ -7,11 +7,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
 )
 
@@ -27,6 +26,7 @@ type LichessConnector struct {
 	Client    *http.Client
 	token     string
 	MoveQueue chan MoveQueue
+	Config    *config.Config
 }
 
 func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]byte, error) {
@@ -51,18 +51,12 @@ func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]b
 	}
 }
 
-func NewLichessConnector() *LichessConnector {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Printf("Error loading .env: %s\n", err)
-		return nil
-	}
-	token := os.Getenv("LICHESS_TOKEN")
-
+func NewLichessConnector(c *config.Config) *LichessConnector {
 	return &LichessConnector{
 		Client:    &http.Client{},
-		token:     token,
+		token:     c.Lichess.APIToken,
 		MoveQueue: make(chan MoveQueue),
+		Config:    c,
 	}
 }
 
@@ -90,9 +84,8 @@ func (lc *LichessConnector) HandleActiveGames(games []NowPlaying) {
 		}
 
 		b := &board.Board{}
-		b.Init()
 		b.ImportFEN(game.Fen)
-		e, _ := eval.NewEvalEngine(b)
+		e, _ := eval.NewEvalEngine(b, lc.Config)
 		e.GetMove()
 		best := e.RootNode.PickBestMove(b.SideToMove)
 		move := best.MoveToPlay
@@ -274,9 +267,8 @@ func (lc *LichessConnector) HandleMoveQueue() {
 		go func(g MoveQueue) {
 			fmt.Printf("Pondering on move: %v\n", g)
 			b := &board.Board{}
-			b.Init()
 			b.ImportFEN(g.Fen)
-			e, _ := eval.NewEvalEngine(b)
+			e, _ := eval.NewEvalEngine(b, lc.Config)
 			e.GetMove()
 			best := e.RootNode.PickBestMove(b.SideToMove)
 			move := best.MoveToPlay

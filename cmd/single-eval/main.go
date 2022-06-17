@@ -7,29 +7,27 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
 	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
-	err := godotenv.Load()
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Printf("Error loading .env: %s\n", err)
-		return
+		fmt.Printf("Failed to load app config: %s\n", err)
 	}
 	fen := flag.String("fen", "", "FEN")
 	flag.Parse()
 	b := &board.Board{}
-	b.Init()
 	b.ImportFEN(*fen)
 	if b.ExportFEN() != *fen {
 		fmt.Printf("Error importing FEN: %s, %s\n", b.ExportFEN(), *fen)
 		return
 	}
 	eval.DEBUG = true
-	e, err := eval.NewEvalEngine(b)
+	e, err := eval.NewEvalEngine(b, cfg)
 	if err != nil {
 		fmt.Printf("Unable to load EvalEngine: %s\n", err)
 		return

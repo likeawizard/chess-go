@@ -2,9 +2,9 @@ package render
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
 	"github.com/rivo/tview"
 )
@@ -35,8 +35,8 @@ type SimpleAsciiRender struct {
 	e *eval.EvalEngine
 }
 
-func New() BoardRender {
-	rendererType := os.Getenv("BOARD_RENDER")
+func New(c *config.Config) BoardRender {
+	rendererType := c.Render.Mode
 	var renderer BoardRender
 	switch rendererType {
 	case "tview":

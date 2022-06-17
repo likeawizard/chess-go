@@ -1,19 +1,23 @@
 package board
 
 import (
-	"os"
+	"github.com/likeawizard/chess-go/internal/config"
 )
 
 var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
 var CastlingRights = [4]string{wOO, wOOO, bOO, bOOO}
 var Files = [8]string{"a", "b", "c", "d", "e", "f", "g", "h"}
 
-func (b *Board) Init() {
-	fen := os.Getenv("STARTING_FEN")
+func (b *Board) Init(c *config.Config) {
+	fen := c.Init.StartingFen
 	if fen == "" {
 		fen = startingFEN
 	}
 	b.ImportFEN(fen)
+}
+
+func (b *Board) InitDefault() {
+	b.ImportFEN(startingFEN)
 }
 
 func (b *Board) Copy() *Board {

@@ -10,7 +10,7 @@ import (
 
 func TestFirstMoveBlocked(t *testing.T) {
 	var b board.Board
-	b.Init()
+	b.InitDefault()
 	f1 := board.Coord{File: 5, Rank: 0}
 	m, c := b.GetAvailableMoves(f1)
 

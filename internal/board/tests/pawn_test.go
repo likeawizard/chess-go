@@ -11,7 +11,7 @@ import (
 func TestFirstMove(t *testing.T) {
 	var b board.Board
 	mExpected := []string{"e2e3", "e2e4"}
-	b.Init()
+	b.InitDefault()
 	e2 := board.Coord{File: 4, Rank: 1}
 	m, c := b.GetAvailableMoves(e2)
 

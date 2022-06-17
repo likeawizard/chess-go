@@ -10,7 +10,7 @@ func TestSimplePawnMove(t *testing.T) {
 	var b board.Board
 	move := "e2e4"
 	pretty := "e4"
-	b.Init()
+	b.InitDefault()
 
 	t.Run("Simple pawn move", func(t *testing.T) {
 		if b.MoveToPretty(move) != pretty {

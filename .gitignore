@@ -1,5 +1,5 @@
 /.idea/
-/.env
+/config.yml
 /self-play
 /analyze
 /lichess
