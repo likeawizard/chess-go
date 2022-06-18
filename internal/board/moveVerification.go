@@ -492,11 +492,12 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 		var (
 			c1 = Coord{2, 0}
 			d1 = Coord{3, 0}
+			b1 = Coord{1, 0}
 			f1 = Coord{5, 0}
 			g1 = Coord{6, 0}
 		)
 
-		if strings.Contains(b.CastlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(d1) == 0 &&
+		if strings.Contains(b.CastlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
 			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1c1")
 		}
@@ -512,11 +513,12 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 		var (
 			c8 = Coord{2, 7}
 			d8 = Coord{3, 7}
+			b8 = Coord{1, 7}
 			f8 = Coord{5, 7}
 			g8 = Coord{6, 7}
 		)
 
-		if strings.Contains(b.CastlingRights, bOOO) && b.AccessCoord(c8) == 0 && b.AccessCoord(d8) == 0 &&
+		if strings.Contains(b.CastlingRights, bOOO) && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
 			!strings.Contains(moveDest, "c8") && !strings.Contains(moveDest, "d8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8c8")
 		}
