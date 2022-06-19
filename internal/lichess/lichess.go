@@ -277,7 +277,7 @@ func (lc *LichessConnector) HandleMoveQueue() {
 			err := lc.MakeMove(g.GameID, move)
 			if err != nil {
 				fmt.Printf("Illegal move - resigning.\n")
-				lc.ResignGame(g.GameID)
+				// lc.ResignGame(g.GameID)
 			}
 		}(g)
 	}
