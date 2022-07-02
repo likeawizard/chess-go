@@ -2,37 +2,29 @@ package board
 
 import (
 	"math"
-	"strings"
 )
 
-func (b *Board) removeCastlingRight(castling string) {
-	b.CastlingRights = strings.ReplaceAll(b.CastlingRights, castling, "")
-	if len(b.CastlingRights) == 0 {
-		b.CastlingRights = "-"
-	}
-}
-
 func (b *Board) updateCastlingRights(from Coord) {
-	if b.CastlingRights == "-" {
+	if b.CastlingRights == 0 {
 		return
 	}
 	square := CoordToAlg(from)
 
 	switch square {
 	case "a1":
-		b.removeCastlingRight(wOOO)
+		b.CastlingRights = b.CastlingRights &^ WOOO
 	case "h1":
-		b.removeCastlingRight(wOO)
+		b.CastlingRights = b.CastlingRights &^ WOO
 	case "a8":
-		b.removeCastlingRight(bOOO)
+		b.CastlingRights = b.CastlingRights &^ BOOO
 	case "h8":
-		b.removeCastlingRight(bOO)
+		b.CastlingRights = b.CastlingRights &^ BOO
 	case "e1":
-		b.removeCastlingRight(wOOO)
-		b.removeCastlingRight(wOO)
+		b.CastlingRights = b.CastlingRights &^ WOOO
+		b.CastlingRights = b.CastlingRights &^ WOO
 	case "e8":
-		b.removeCastlingRight(bOOO)
-		b.removeCastlingRight(bOO)
+		b.CastlingRights = b.CastlingRights &^ BOOO
+		b.CastlingRights = b.CastlingRights &^ BOO
 	}
 }
 

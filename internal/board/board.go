@@ -1,11 +1,12 @@
 package board
 
 import (
+	"strings"
+
 	"github.com/likeawizard/chess-go/internal/config"
 )
 
 var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
-var CastlingRights = [4]string{wOO, wOOO, bOO, bOOO}
 var Files = [8]string{"a", "b", "c", "d", "e", "f", "g", "h"}
 
 func (b *Board) Init(c *config.Config) {
@@ -30,7 +31,6 @@ func (b *Board) Copy() *Board {
 		FullMoveCounter: b.HalfMoveCounter,
 		IsEvaluated:     b.IsEvaluated,
 		CachedEval:      b.CachedEval,
-		EnPassantMoves:  b.EnPassantMoves,
 		TrackMoves:      b.TrackMoves,
 		Moves:           b.Moves,
 	}
@@ -168,4 +168,11 @@ func (b *Board) GetLastMove() string {
 		return ""
 	}
 	return b.Moves[len(b.Moves)-1]
+}
+
+func (b *Board) PlayMoves(moves string) {
+	moveSlice := strings.Fields(moves)
+	for _, move := range moveSlice {
+		b.MoveLongAlg(move)
+	}
 }

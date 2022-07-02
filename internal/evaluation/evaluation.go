@@ -1,7 +1,8 @@
 package eval
 
 import (
-	"sort"
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -19,14 +20,6 @@ const (
 	EVAL_ALPHABETA string = "alphabeta"
 )
 
-type Node struct {
-	Position   *board.Board
-	MoveToPlay string
-	Evaluation float32
-	Parent     *Node
-	Children   []*Node
-}
-type SearchFunction func(n *Node, depth ...int) float32
 type EvalFunction func(*EvalEngine, *board.Board) float32
 
 type EvalEngine struct {
@@ -41,36 +34,6 @@ type EvalEngine struct {
 	Algorithm     string
 }
 
-func (n *Node) GetChildNodes() []*Node {
-	moves, captures := n.Position.GetLegalMoves(n.Position.SideToMove)
-	all := append(captures, moves...)
-	childNodes := make([]*Node, len(all))
-
-	for i := 0; i < len(all); i++ {
-		childNodes[i] = &Node{
-			Parent:     n,
-			Children:   nil,
-			Position:   &board.Board{},
-			MoveToPlay: all[i],
-		}
-		childNodes[i].Position = n.Position.SimpleCopy()
-		childNodes[i].Position.MoveLongAlg(all[i])
-	}
-
-	return childNodes
-}
-
-func NewRootNode(b *board.Board) *Node {
-	node := &Node{
-		Position: b,
-		Parent:   nil,
-	}
-
-	node.Children = node.GetChildNodes()
-
-	return node
-}
-
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	return &EvalEngine{
 		RootNode:      NewRootNode(b),
@@ -82,7 +45,35 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	}, nil
 }
 
+func (e *EvalEngine) BuildGameTree(depth int) {
+	root := e.RootNode
+	root.BuildGameTree(depth)
+}
+
+func (e *EvalEngine) EvaluateLeafNodes(ctx context.Context) {
+	go func(ctx context.Context) {
+		e.RootNode.EvaluateLeafNodes(ctx, e)
+	}(ctx)
+}
+
+func (e *EvalEngine) PonderOnMove(ctx context.Context) {
+	e.BuildGameTree(e.SearchDepth + 1)
+	// e.EvaluateLeafNodes(ctx)
+	// fmt.Println("built search tree")
+}
+
+func (e *EvalEngine) ResetRootWithMove(move string) error {
+	for _, child := range e.RootNode.Children {
+		if child.MoveToPlay == move {
+			e.RootNode = child
+			return nil
+		}
+	}
+	return fmt.Errorf("move not found among children: %s", move)
+}
+
 func (e *EvalEngine) GetMove() {
+	fmt.Println(e.RootNode.Position.ExportFEN())
 	e.Evaluations = 0
 	start := time.Now()
 	switch e.Algorithm {
@@ -91,32 +82,11 @@ func (e *EvalEngine) GetMove() {
 	case EVAL_ALPHABETA:
 		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.SideToMove == board.WhiteToMove)
 	}
+	// for _, c := range e.RootNode.Children {
+	// 	fmt.Println(c.MoveToPlay)
+	// }
+
 	e.MoveTime = time.Since(start)
-}
-
-func (n *Node) PickBestMove(side byte) *Node {
-	if n.Children == nil || len(n.Children) == 0 {
-		return nil
-	}
-	var bestMove *Node = n.Children[0]
-	bestScore := negInf
-	switch side {
-	case board.WhiteToMove:
-		for _, c := range n.Children {
-			if c.Evaluation >= bestScore {
-				bestScore, bestMove = c.Evaluation, c
-			}
-		}
-	case board.BlackToMove:
-		bestScore = posInf
-		for _, c := range n.Children {
-			if c.Evaluation <= bestScore {
-				bestScore, bestMove = c.Evaluation, c
-			}
-		}
-	}
-
-	return bestMove
 }
 
 func min(a, b int) int {
@@ -124,43 +94,6 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func (n *Node) PickBestMoves(num int) []*Node {
-	moves := n.Children
-	num = min(num, len(moves))
-	sort.Slice(moves, func(i, j int) bool {
-		if n.Position.SideToMove == board.WhiteToMove {
-			return moves[i].Evaluation > moves[j].Evaluation
-		} else {
-			return moves[i].Evaluation < moves[j].Evaluation
-		}
-
-	})
-	return moves[:num]
-}
-
-func (n *Node) ConstructLine() []string {
-	line := make([]string, 0)
-	line = append(line, n.MoveToPlay)
-	side := n.Position.SideToMove
-	current := n
-	for current.Children != nil {
-		best := current.PickBestMove(side)
-		if best == nil {
-			break
-		}
-		line = append(line, best.MoveToPlay)
-		switch side {
-		case board.WhiteToMove:
-			side = board.BlackToMove
-		case board.BlackToMove:
-			side = board.WhiteToMove
-		}
-		current = best
-	}
-
-	return line
 }
 
 func (e *EvalEngine) PlayMove(move *Node) {

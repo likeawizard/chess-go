@@ -139,6 +139,10 @@ func SideDependantEval(e *EvalEngine, b *board.Board) float32 {
 }
 
 func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
+	if b.IsEvaluated {
+		return b.CachedEval
+	}
+
 	inCheck := b.IsInCheck(b.SideToMove)
 	m, c := b.GetLegalMoves(b.SideToMove)
 	all := append(m, c...)

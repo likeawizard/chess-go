@@ -67,10 +67,6 @@ type GamesRsp struct {
 	NowPlaying []NowPlaying `json:"nowPlaying"`
 }
 
-// type Variant struct {
-// 	Key string `json:"key"`
-// 	Name string `json:"name"`
-// }
 type Opponent struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
@@ -117,6 +113,12 @@ type Game struct {
 type GameState struct {
 	Type       string  `json:"type"`
 	ID         string  `json:"id"`
+	Moves      string  `json:"moves"`
+	Wtime      int     `json:"wtime"`
+	Btime      int     `json:"btime"`
+	Winc       int     `json:"winc"`
+	Binc       int     `json:"binc"`
+	Status     string  `json:"status"`
 	Rated      bool    `json:"rated"`
 	Variant    Variant `json:"variant"`
 	Clock      Clock   `json:"clock"`

@@ -1,6 +1,7 @@
 package lichess
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -223,7 +224,13 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 	if err != nil {
 		fmt.Printf("Error opening GameStream: %s\n", err)
 	}
+
+	var isWhite bool
+	var e *eval.EvalEngine
+	var b *board.Board = &board.Board{}
 	decoder := json.NewDecoder(resp.Body)
+	var ctx context.Context
+	var cancel context.CancelFunc
 
 	for decoder.More() {
 		var gs GameState
@@ -231,24 +238,66 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 		if err != nil {
 			fmt.Printf("Error decoding GameState: %s\n", err)
 			continue
+		} else {
+			fmt.Printf("GameEvent: %+v\n", gs)
 		}
-
-		//TODO: Dirty stream implementation. Uses streams only as a notification to check active games.
-		//Rewrite to use game event gameFull/gameState to independently construct game state.
 		switch gs.Type {
-		case GAME_EVENT_FULL, GAME_EVENT_STATE:
-			g, err := lc.getActiveGame(game.GameID)
-			if err != nil {
-				fmt.Printf("Not my turn. Don't care....\n")
-				continue
+		case GAME_EVENT_FULL:
+			fmt.Printf("Game started: %s\n", game.GameID)
+			//TODO: hardcoded player id
+			isWhite = gs.White.ID == "likeawizrd-bot"
+			if gs.InitialFen == "startpos" {
+				b.InitDefault()
+			} else {
+				b.ImportFEN(gs.InitialFen)
 			}
-			lc.MoveQueue <- MoveQueue{Fen: g.Fen, GameID: g.GameID}
+			b.TrackMoves = true
+			b.PlayMoves(gs.State.Moves)
+			e, err = eval.NewEvalEngine(b, lc.Config)
+			if err != nil {
+				fmt.Printf("Error loading eval engine: %s\n", err)
+				cancel()
+				return
+			}
 
+			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				e.GetMove()
+				best := e.RootNode.PickBestMove(e.RootNode.Position.SideToMove)
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				lc.MakeMove(game.GameID, best.MoveToPlay)
+			} else {
+				fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				ctx, cancel = context.WithCancel(context.Background())
+				go e.PonderOnMove(ctx)
+			}
+
+		case GAME_EVENT_STATE:
+			fmt.Printf("New move in: %s\n", game.GameID)
+			moves := strings.Fields(gs.Moves)
+			lastMove := moves[len(moves)-1]
+			e.ResetRootWithMove(lastMove)
+			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				cancel()
+				e.GetMove()
+				best := e.RootNode.PickBestMove(e.RootNode.Position.SideToMove)
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				lc.MakeMove(game.GameID, best.MoveToPlay)
+			} else {
+				ctx, cancel = context.WithCancel(context.Background())
+				fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				go e.PonderOnMove(ctx)
+			}
 		default:
 			fmt.Printf("Unhandled game state: %s\n", gs.Type)
 		}
 
 	}
+}
+
+func (lc *LichessConnector) applyGameState(gs State, e *eval.EvalEngine) {
+	e.RootNode.Position.PlayMoves(gs.Moves)
 }
 
 func (lc *LichessConnector) getActiveGame(gameID string) (*NowPlaying, error) {

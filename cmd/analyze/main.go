@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -37,7 +38,17 @@ func main() {
 	r.InitRender(b, e)
 	RegisterIterrupt(b)
 
+	now := time.Now()
+	e.BuildGameTree(e.SearchDepth)
+	fmt.Println(time.Since(now).Milliseconds())
+	// ctx, _ := context.WithCancel(context.Background())
+	// e.RootNode.EvaluateLeafNodes(ctx, e)
+	e.RootNode.EvaluateLeafNodesNR(e)
+	// time.Sleep(5 * time.Second)
+	// cancel()
+	fmt.Println(time.Since(now).Milliseconds())
 	e.GetMove()
+	fmt.Println(time.Since(now).Milliseconds())
 	best := e.RootNode.PickBestMove(b.SideToMove)
 	candidates := e.RootNode.PickBestMoves(3)
 	for _, move := range candidates {
