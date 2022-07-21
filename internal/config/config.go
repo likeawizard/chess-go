@@ -16,7 +16,7 @@ type Config struct {
 }
 
 type Init struct {
-	StartingFen string `yaml:"init"`
+	StartingFen string `yaml:"startingFen"`
 }
 
 type Engine struct {
