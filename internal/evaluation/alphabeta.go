@@ -18,7 +18,6 @@ func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32, is
 			value = Max32(value, e.alphabetaSerial(n.Children[i], depth-1, alpha, beta, false))
 
 			if value >= beta {
-				n = nil
 				break
 			}
 			alpha = Max32(alpha, value)
@@ -34,7 +33,6 @@ func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32, is
 			value = Min32(value, e.alphabetaSerial(n.Children[i], depth-1, alpha, beta, true))
 
 			if value <= alpha {
-				n = nil
 				break
 			}
 			beta = Min32(beta, value)

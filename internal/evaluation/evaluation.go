@@ -103,14 +103,14 @@ func (n *Node) PickBestMove(side byte) *Node {
 	switch side {
 	case board.WhiteToMove:
 		for _, c := range n.Children {
-			if c.Evaluation >= bestScore {
+			if c.Evaluation > bestScore {
 				bestScore, bestMove = c.Evaluation, c
 			}
 		}
 	case board.BlackToMove:
 		bestScore = posInf
 		for _, c := range n.Children {
-			if c.Evaluation <= bestScore {
+			if c.Evaluation < bestScore {
 				bestScore, bestMove = c.Evaluation, c
 			}
 		}
