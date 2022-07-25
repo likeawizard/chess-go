@@ -7,12 +7,14 @@ import (
 )
 
 type TimeManagment struct {
-	Speed      string
-	MoveTarget int
-	Move       int
-	Time       int
-	Inc        int
-	isWhite    bool
+	Speed        string
+	MoveTarget   int
+	Move         int
+	Time         int
+	Inc          int
+	LagStopWatch time.Time
+	Lag          int
+	isWhite      bool
 }
 
 func (tm *TimeManagment) UpdateClock(state GameState) {
@@ -25,7 +27,6 @@ func (tm *TimeManagment) UpdateClock(state GameState) {
 }
 
 func (tm *TimeManagment) AllotTime() int {
-	lagCompensation := 150
 	max := func(a, b int) int {
 		if a > b {
 			return a
@@ -39,8 +40,8 @@ func (tm *TimeManagment) AllotTime() int {
 	}
 
 	movesLeft := max(tm.MoveTarget-tm.Move, 10)
-	expectedTimeLeft := tm.Time + (tm.Inc-lagCompensation)*movesLeft
-	return max(expectedTimeLeft/(movesLeft+2)-2*lagCompensation, 100)
+	expectedTimeLeft := tm.Time + (tm.Inc-tm.Lag)*movesLeft
+	return max(expectedTimeLeft/(movesLeft+2), 100)
 }
 
 func (tm *TimeManagment) GetTimeoutContext() (context.Context, context.CancelFunc) {
@@ -83,4 +84,12 @@ func (state *State) GetTime(isWhite bool) (int, int) {
 	} else {
 		return state.Btime, state.Winc
 	}
+}
+
+func (tm *TimeManagment) StartStopWatch() {
+	tm.LagStopWatch = time.Now()
+}
+
+func (tm *TimeManagment) MeasureLag() {
+	tm.Lag = int(time.Since(tm.LagStopWatch).Milliseconds())
 }
