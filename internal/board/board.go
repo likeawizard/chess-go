@@ -1,6 +1,8 @@
 package board
 
 import (
+	"strings"
+
 	"github.com/likeawizard/chess-go/internal/config"
 )
 
@@ -168,4 +170,11 @@ func (b *Board) GetLastMove() string {
 		return ""
 	}
 	return b.Moves[len(b.Moves)-1]
+}
+
+func (b *Board) PlayMoves(moves string) {
+	moveSlice := strings.Fields(moves)
+	for _, move := range moveSlice {
+		b.MoveLongAlg(move)
+	}
 }

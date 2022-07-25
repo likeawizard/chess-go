@@ -1,6 +1,7 @@
 package lichess
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,10 +24,10 @@ const (
 )
 
 type LichessConnector struct {
-	Client    *http.Client
-	token     string
-	MoveQueue chan MoveQueue
-	Config    *config.Config
+	Client        *http.Client
+	token         string
+	Config        *config.Config
+	FinishedGames map[string]bool
 }
 
 func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]byte, error) {
@@ -53,10 +54,10 @@ func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]b
 
 func NewLichessConnector(c *config.Config) *LichessConnector {
 	return &LichessConnector{
-		Client:    &http.Client{},
-		token:     c.Lichess.APIToken,
-		MoveQueue: make(chan MoveQueue),
-		Config:    c,
+		Client:        &http.Client{},
+		token:         c.Lichess.APIToken,
+		Config:        c,
+		FinishedGames: make(map[string]bool),
 	}
 }
 
@@ -74,25 +75,6 @@ func (lc *LichessConnector) CheckActiveGames() []NowPlaying {
 		return nil
 	} else {
 		return games.NowPlaying
-	}
-}
-
-func (lc *LichessConnector) HandleActiveGames(games []NowPlaying) {
-	for _, game := range games {
-		if !game.IsMyTurn {
-			continue
-		}
-
-		b := &board.Board{}
-		b.ImportFEN(game.Fen)
-		e, _ := eval.NewEvalEngine(b, lc.Config)
-		e.GetMove()
-		best := e.RootNode.PickBestMove(b.SideToMove)
-		move := best.MoveToPlay
-		err := lc.MakeMove(game.GameID, move)
-		if err != nil {
-			lc.ResignGame(game.GameID)
-		}
 	}
 }
 
@@ -137,8 +119,11 @@ func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
 	if ch.Variant.Key != "standard" {
 		return false, "variant"
 	}
-	if ch.TimeControl.Type != "unlimited" && ch.TimeControl.Type != "correspondence" {
-		return false, "tooFast"
+	if ch.Challenger.Title == "BOT" {
+		return false, "noBot"
+	}
+	if ch.TimeControl.Type == "unlimited" || ch.TimeControl.Type == "correspondence" {
+		return false, "tooSlow"
 	}
 	return true, ""
 }
@@ -205,10 +190,16 @@ func (lc *LichessConnector) ListenToEvents(decoder *json.Decoder) {
 		case EVENT_GAME_START:
 			fmt.Printf("New Game: %v\n", e.Game)
 			go lc.ListenToGame(e.Game)
+		case "gameFinish":
+			lc.MarkGameForCancelation(e.Game.GameID)
 		default:
 			fmt.Printf("Unhandled event: %s\n", e.Type)
 		}
 	}
+}
+
+func (lc *LichessConnector) MarkGameForCancelation(gameId string) {
+	lc.FinishedGames[gameId] = true
 }
 
 func (lc *LichessConnector) ListenToGame(game Game) {
@@ -223,7 +214,14 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 	if err != nil {
 		fmt.Printf("Error opening GameStream: %s\n", err)
 	}
+
+	var isWhite bool
+	var e *eval.EvalEngine
+	var b *board.Board = &board.Board{}
 	decoder := json.NewDecoder(resp.Body)
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var timeManagment TimeManagment
 
 	for decoder.More() {
 		var gs GameState
@@ -231,54 +229,81 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 		if err != nil {
 			fmt.Printf("Error decoding GameState: %s\n", err)
 			continue
+		} else {
+			fmt.Printf("Event: %s in %s\n", gs.Type, game.GameID)
 		}
 
-		//TODO: Dirty stream implementation. Uses streams only as a notification to check active games.
-		//Rewrite to use game event gameFull/gameState to independently construct game state.
-		switch gs.Type {
-		case GAME_EVENT_FULL, GAME_EVENT_STATE:
-			g, err := lc.getActiveGame(game.GameID)
-			if err != nil {
-				fmt.Printf("Not my turn. Don't care....\n")
-				continue
+		if lc.FinishedGames[game.GameID] {
+			if cancel != nil {
+				cancel()
 			}
-			lc.MoveQueue <- MoveQueue{Fen: g.Fen, GameID: g.GameID}
+
+			fmt.Printf("Game over ID: %s\n", game.GameID)
+
+			return
+		}
+
+		switch gs.Type {
+		case GAME_EVENT_FULL:
+			fmt.Printf("Game started: %s\n", game.GameID)
+			//TODO: hardcoded player id
+			isWhite = gs.White.ID == "likeawizard-bot"
+			if gs.InitialFen == "startpos" {
+				b.InitDefault()
+			} else {
+				b.ImportFEN(gs.InitialFen)
+			}
+			b.TrackMoves = true
+			b.PlayMoves(gs.State.Moves)
+			e, err = eval.NewEvalEngine(b, lc.Config)
+			if err != nil {
+				fmt.Printf("Error loading eval engine: %s\n", err)
+				cancel()
+				return
+			}
+			timeManagment = *NewTimeManagement(gs, isWhite)
+
+			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				ctx, cancel := timeManagment.GetTimeoutContext()
+				best := e.GetMove(ctx)
+				defer cancel()
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				lc.MakeMove(game.GameID, best.MoveToPlay)
+			} else {
+				// ctx, cancel = timeManagment.GetPonderContext()
+				// defer cancel()
+				// go e.GetMove(ctx)
+			}
+		case GAME_EVENT_STATE:
+			fmt.Printf("New move in: %s\n", game.GameID)
+			timeManagment.UpdateClock(gs)
+			moves := strings.Fields(gs.Moves)
+			if len(moves) != 0 {
+				lastMove := moves[len(moves)-1]
+				if cancel != nil {
+					cancel()
+				}
+				e.ResetRootWithMove(lastMove)
+			}
+
+			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				ctx, cancel = timeManagment.GetTimeoutContext()
+				defer cancel()
+				best := e.GetMove(ctx)
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				lc.MakeMove(game.GameID, best.MoveToPlay)
+			} else {
+				// ctx, cancel = timeManagment.GetPonderContext()
+				// defer cancel()
+				// fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				// go e.GetMove(ctx)
+			}
 
 		default:
 			fmt.Printf("Unhandled game state: %s\n", gs.Type)
 		}
 
-	}
-}
-
-func (lc *LichessConnector) getActiveGame(gameID string) (*NowPlaying, error) {
-	nowPlaying := lc.CheckActiveGames()
-	for _, game := range nowPlaying {
-		if game.GameID == gameID && game.IsMyTurn {
-			return &game, nil
-		}
-	}
-	return nil, fmt.Errorf("game not found")
-
-}
-
-func (lc *LichessConnector) HandleMoveQueue() {
-	for g := range lc.MoveQueue {
-		go func(g MoveQueue) {
-			fmt.Printf("Pondering on move: %v\n", g)
-			b := &board.Board{}
-			b.ImportFEN(g.Fen)
-			e, _ := eval.NewEvalEngine(b, lc.Config)
-			e.GetMove()
-			best := e.RootNode.PickBestMove(b.SideToMove)
-			move := best.MoveToPlay
-
-			fmt.Printf("Making %s move in %s (FEN: %s )\n", move, g.GameID, g.Fen)
-			err := lc.MakeMove(g.GameID, move)
-			if err != nil {
-				fmt.Printf("Illegal move - resigning.\n")
-				// lc.ResignGame(g.GameID)
-			}
-		}(g)
 	}
 }
