@@ -534,12 +534,12 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 			g1 = Coord{6, 0}
 		)
 
-		if strings.Contains(b.CastlingRights, wOOO) && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
+		if b.CastlingRights&WOOO != 0 && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
 			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1c1")
 		}
 
-		if strings.Contains(b.CastlingRights, wOO) && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
+		if b.CastlingRights&WOO != 0 && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
 			!strings.Contains(moveDest, "f1") && !strings.Contains(moveDest, "g1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1g1")
 		}
@@ -555,12 +555,12 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 			g8 = Coord{6, 7}
 		)
 
-		if strings.Contains(b.CastlingRights, bOOO) && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
+		if b.CastlingRights&BOOO != 0 && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
 			!strings.Contains(moveDest, "c8") && !strings.Contains(moveDest, "d8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8c8")
 		}
 
-		if strings.Contains(b.CastlingRights, bOO) && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
+		if b.CastlingRights&BOO != 0 && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
 			!strings.Contains(moveDest, "f8") && !strings.Contains(moveDest, "g8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8g8")
 		}
@@ -575,11 +575,30 @@ func movesToDestinationSquaresString(moves []string) (destination string) {
 	return destination
 }
 
-func (b *Board) isCastling(move string) bool {
-	for i, castlingMove := range CastlingMoves {
-		if move == castlingMove && strings.Contains(b.CastlingRights, CastlingRights[i]) {
-			return true
-		}
+func (b *Board) IsCastling(move string) bool {
+	if b.CastlingRights&CASTLING_ALL == 0 {
+		return false
+	}
+	from, _ := longAlgToCoords(move)
+	king := b.AccessCoord(from)
+	if king != K && king != k {
+		return false
+	}
+
+	if move == "e1c1" && b.CastlingRights&WOOO != 0 {
+		return true
+	}
+
+	if move == "e1g1" && b.CastlingRights&WOO != 0 {
+		return true
+	}
+
+	if move == "e8c8" && b.CastlingRights&BOOO != 0 {
+		return true
+	}
+
+	if move == "e8g8" && b.CastlingRights&BOO != 0 {
+		return true
 	}
 	return false
 }
