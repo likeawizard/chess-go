@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -27,7 +28,7 @@ type LichessConnector struct {
 	Client        *http.Client
 	token         string
 	Config        *config.Config
-	FinishedGames map[string]bool
+	FinishedGames sync.Map
 }
 
 func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]byte, error) {
@@ -54,10 +55,9 @@ func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]b
 
 func NewLichessConnector(c *config.Config) *LichessConnector {
 	return &LichessConnector{
-		Client:        &http.Client{},
-		token:         c.Lichess.APIToken,
-		Config:        c,
-		FinishedGames: make(map[string]bool),
+		Client: &http.Client{},
+		token:  c.Lichess.APIToken,
+		Config: c,
 	}
 }
 
@@ -119,9 +119,9 @@ func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
 	if ch.Variant.Key != "standard" {
 		return false, "variant"
 	}
-	if ch.Challenger.Title == "BOT" {
-		return false, "noBot"
-	}
+	// if ch.Challenger.Title == "BOT" {
+	// 	return false, "noBot"
+	// }
 	if ch.TimeControl.Type == "unlimited" || ch.TimeControl.Type == "correspondence" {
 		return false, "tooSlow"
 	}
@@ -199,7 +199,7 @@ func (lc *LichessConnector) ListenToEvents(decoder *json.Decoder) {
 }
 
 func (lc *LichessConnector) MarkGameForCancelation(gameId string) {
-	lc.FinishedGames[gameId] = true
+	lc.FinishedGames.Store(gameId, struct{}{})
 }
 
 func (lc *LichessConnector) ListenToGame(game Game) {
@@ -233,7 +233,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			fmt.Printf("Event: %s in %s\n", gs.Type, game.GameID)
 		}
 
-		if lc.FinishedGames[game.GameID] {
+		if _, ok := lc.FinishedGames.LoadAndDelete(game.GameID); ok {
 			if cancel != nil {
 				cancel()
 			}
@@ -265,15 +265,21 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 
 			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel := timeManagment.GetTimeoutContext()
 				best := e.GetMove(ctx)
+				if best == nil {
+					return
+				}
 				defer cancel()
 				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				timeManagment.StartStopWatch()
 				lc.MakeMove(game.GameID, best.MoveToPlay)
 			} else {
-				// ctx, cancel = timeManagment.GetPonderContext()
-				// defer cancel()
-				// go e.GetMove(ctx)
+				timeManagment.MeasureLag()
+				ctx, cancel = timeManagment.GetPonderContext()
+				defer cancel()
+				go e.GetMove(ctx)
 			}
 		case GAME_EVENT_STATE:
 			fmt.Printf("New move in: %s\n", game.GameID)
@@ -289,16 +295,22 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 
 			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel = timeManagment.GetTimeoutContext()
 				defer cancel()
 				best := e.GetMove(ctx)
+				if best == nil {
+					return
+				}
 				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				timeManagment.StartStopWatch()
 				lc.MakeMove(game.GameID, best.MoveToPlay)
 			} else {
-				// ctx, cancel = timeManagment.GetPonderContext()
-				// defer cancel()
-				// fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
-				// go e.GetMove(ctx)
+				timeManagment.MeasureLag()
+				ctx, cancel = timeManagment.GetPonderContext()
+				defer cancel()
+				fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+				go e.GetMove(ctx)
 			}
 
 		default:
