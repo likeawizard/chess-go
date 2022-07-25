@@ -107,9 +107,15 @@ func TestKingCastledAndPiecePositions(t *testing.T) {
 	g1 := board.Coord{File: 6, Rank: 0}
 	f1 := board.Coord{File: 5, Rank: 0}
 
+	t.Run("Verify castling", func(t *testing.T) {
+		if !b.IsCastling("e1g1") {
+			t.Errorf("Move not recognized as castling")
+		}
+	})
+
 	b.MoveLongAlg("e1g1")
 
-	t.Run("Cant castle under check", func(t *testing.T) {
+	t.Run("Safe castling", func(t *testing.T) {
 		sort.Strings(m)
 		sort.Strings(mExpected)
 		if !reflect.DeepEqual(m, mExpected) {

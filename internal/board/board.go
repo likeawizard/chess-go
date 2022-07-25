@@ -7,7 +7,6 @@ import (
 )
 
 var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
-var CastlingRights = [4]string{wOO, wOOO, bOO, bOOO}
 var Files = [8]string{"a", "b", "c", "d", "e", "f", "g", "h"}
 
 func (b *Board) Init(c *config.Config) {
@@ -57,7 +56,7 @@ func (b *Board) MoveLongAlg(longalg string) {
 			b.TrackMove(longalg)
 		}
 		switch {
-		case b.isCastling(longalg):
+		case b.IsCastling(longalg):
 			b.castle(longalg)
 		case b.isEnPassant(longalg):
 			b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]

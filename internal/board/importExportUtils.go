@@ -32,7 +32,20 @@ func (b *Board) ExportFEN() string {
 			fen += "/"
 		}
 	}
-	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, b.CastlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
+	castlingRights := ""
+	if b.CastlingRights&WOO != 0 {
+		castlingRights += "K"
+	}
+	if b.CastlingRights&WOOO != 0 {
+		castlingRights += "Q"
+	}
+	if b.CastlingRights&BOO != 0 {
+		castlingRights += "k"
+	}
+	if b.CastlingRights&BOOO != 0 {
+		castlingRights += "q"
+	}
+	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, castlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
 	return fen
 }
 
@@ -64,7 +77,18 @@ func (b *Board) ImportFEN(fen string) error {
 	}
 	b.HalfMoveCounter = uint8(hm)
 
-	b.CastlingRights = castling
+	for _, c := range []byte(castling) {
+		switch c {
+		case 'K':
+			b.CastlingRights = b.CastlingRights | WOO
+		case 'Q':
+			b.CastlingRights = b.CastlingRights | WOOO
+		case 'k':
+			b.CastlingRights = b.CastlingRights | BOO
+		case 'q':
+			b.CastlingRights = b.CastlingRights | BOOO
+		}
+	}
 	b.EnPassantTarget = enPassant
 
 	return nil
