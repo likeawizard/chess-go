@@ -63,6 +63,9 @@ func (b *Board) MoveLongAlg(longalg string) {
 			b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
 			b.Coords[from.File][from.Rank] = empty
 			b.Coords[to.File][from.Rank] = empty
+		case len(longalg) == 5:
+			b.Coords[to.File][to.Rank] = b.promote(longalg[4:])
+			b.Coords[from.File][from.Rank] = empty
 		default:
 			b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
 			b.Coords[from.File][from.Rank] = empty
@@ -70,8 +73,25 @@ func (b *Board) MoveLongAlg(longalg string) {
 
 		b.updateEnPassantTarget(from, to)
 		b.updateCastlingRights(from)
-		b.autoPromotePawn(to)
 		b.updateSideToMove()
+	}
+}
+
+func (b *Board) promote(piece string) uint8 {
+	off := uint8(0)
+	if b.SideToMove == BlackToMove {
+		off = 6
+	}
+
+	switch piece {
+	case "b":
+		return off + B
+	case "r":
+		return off + R
+	case "n":
+		return off + N
+	default:
+		return off + Q
 	}
 }
 
@@ -97,17 +117,6 @@ func (b *Board) castle(move string) {
 		b.Coords[2][7] = k
 		b.Coords[0][7] = empty
 		b.Coords[3][7] = r
-	}
-}
-
-func (b *Board) autoPromotePawn(to Coord) {
-	piece, _ := GetPiece(b, to)
-	if piece == P && to.Rank == 7 {
-		b.Coords[to.File][to.Rank] = Q
-	}
-
-	if piece == p && to.Rank == 0 {
-		b.Coords[to.File][to.Rank] = q
 	}
 }
 

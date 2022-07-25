@@ -239,6 +239,7 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
 	var isFirstMove bool
 	var direction = 1
+	hasPromotion := false
 
 	if isWhite {
 		isFirstMove = c.Rank == 1
@@ -249,6 +250,9 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 
 	if b.AccessCoord(Coord{c.File, c.Rank + direction}) == 0 {
 		moves = append(moves, CoordsToMove(c, Coord{c.File, c.Rank + direction}))
+		if c.Rank+direction == 7 || c.Rank+direction == 0 {
+			hasPromotion = true
+		}
 	}
 
 	if isFirstMove && b.AccessCoord(Coord{c.File, c.Rank + direction}) == 0 && b.AccessCoord(Coord{c.File, c.Rank + 2*direction}) == 0 {
@@ -259,10 +263,16 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 		targetCoord = Coord{c.File + 1, c.Rank + direction}
 		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
+			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+				hasPromotion = true
+			}
 		}
 		targetCoord = Coord{c.File - 1, c.Rank + direction}
 		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
+			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+				hasPromotion = true
+			}
 		}
 	}
 
@@ -270,6 +280,9 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 		targetCoord = Coord{c.File + 1, c.Rank + direction}
 		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
+			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+				hasPromotion = true
+			}
 		}
 	}
 
@@ -277,6 +290,9 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 		targetCoord = Coord{c.File - 1, c.Rank + direction}
 		if isOpponentPiece(b, c, targetCoord) {
 			captures = append(captures, CoordsToMove(c, targetCoord))
+			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+				hasPromotion = true
+			}
 		}
 	}
 
@@ -307,7 +323,28 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 		}
 	}
 
+	if hasPromotion {
+		moves, captures = b.addPawnPromotion(moves, captures)
+	}
+
 	return
+}
+
+func (b *Board) addPawnPromotion(moves, captures []string) ([]string, []string) {
+	processMoves := func(moves []string) []string {
+		var m []string
+		for _, move := range moves {
+			_, to := longAlgToCoords(move)
+			if to.Rank == 7 || to.Rank == 0 {
+				m = append(m, move+"q", move+"r", move+"n", move+"b")
+			} else {
+				m = append(m, move)
+			}
+
+		}
+		return m
+	}
+	return processMoves(moves), processMoves(captures)
 }
 
 func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
