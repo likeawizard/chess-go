@@ -19,6 +19,5 @@ func main() {
 		return
 	}
 
-	go lc.ListenToEvents(decoder)
-	lc.HandleMoveQueue()
+	lc.ListenToEvents(decoder)
 }

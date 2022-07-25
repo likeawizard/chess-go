@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -32,8 +34,9 @@ func main() {
 	RegisterIterrupt(b1)
 	go func() {
 		for {
-			e.GetMove()
-			best := e.RootNode.PickBestMove(b1.SideToMove)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
+			best := e.GetMove(ctx)
+			defer cancel()
 			candidates := e.RootNode.PickBestMoves(3)
 			for _, move := range candidates {
 				fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())

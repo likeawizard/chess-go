@@ -1,6 +1,8 @@
 package eval
 
 import (
+	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -82,16 +84,20 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	}, nil
 }
 
-func (e *EvalEngine) GetMove() {
+func (e *EvalEngine) GetMove(ctx context.Context) *Node {
+	var best *Node
 	e.Evaluations = 0
 	start := time.Now()
 	switch e.Algorithm {
 	case EVAL_MINMAX:
 		e.minmaxSerial(e.RootNode, e.SearchDepth, e.RootNode.Position.SideToMove == board.WhiteToMove)
+		best = e.RootNode.PickBestMove(e.RootNode.Position.SideToMove)
 	case EVAL_ALPHABETA:
-		e.alphabetaSerial(e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.SideToMove == board.WhiteToMove)
+		best = e.alphaBetaWithOrdering(ctx, e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.SideToMove == board.WhiteToMove)
 	}
 	e.MoveTime = time.Since(start)
+
+	return best
 }
 
 func (n *Node) PickBestMove(side byte) *Node {
@@ -166,6 +172,16 @@ func (n *Node) ConstructLine() []string {
 func (e *EvalEngine) PlayMove(move *Node) {
 	e.RootNode = move
 	e.RootNode.Parent = nil
+}
+
+func (e *EvalEngine) ResetRootWithMove(move string) error {
+	for _, child := range e.RootNode.Children {
+		if child.MoveToPlay == move {
+			e.RootNode = child
+			return nil
+		}
+	}
+	return fmt.Errorf("move not found among children: %s", move)
 }
 
 type CompFunc func(float32, float32) float32
