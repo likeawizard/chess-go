@@ -51,29 +51,27 @@ func (b *Board) SimpleCopy() *Board {
 
 func (b *Board) MoveLongAlg(longalg string) {
 	from, to := longAlgToCoords(longalg)
-	if b.VerifyMove(longalg) {
-		if b.TrackMoves {
-			b.TrackMove(longalg)
-		}
-		switch {
-		case b.IsCastling(longalg):
-			b.castle(longalg)
-		case b.isEnPassant(longalg):
-			b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
-			b.Coords[from.File][from.Rank] = empty
-			b.Coords[to.File][from.Rank] = empty
-		case len(longalg) == 5:
-			b.Coords[to.File][to.Rank] = b.promote(longalg[4:])
-			b.Coords[from.File][from.Rank] = empty
-		default:
-			b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
-			b.Coords[from.File][from.Rank] = empty
-		}
-
-		b.updateEnPassantTarget(from, to)
-		b.updateCastlingRights(from)
-		b.updateSideToMove()
+	if b.TrackMoves {
+		b.TrackMove(longalg)
 	}
+	switch {
+	case b.IsCastling(longalg):
+		b.castle(longalg)
+	case b.isEnPassant(longalg):
+		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
+		b.Coords[from.File][from.Rank] = empty
+		b.Coords[to.File][from.Rank] = empty
+	case len(longalg) == 5:
+		b.Coords[to.File][to.Rank] = b.promote(longalg[4:])
+		b.Coords[from.File][from.Rank] = empty
+	default:
+		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
+		b.Coords[from.File][from.Rank] = empty
+	}
+
+	b.updateEnPassantTarget(from, to)
+	b.updateCastlingRights(from)
+	b.updateSideToMove()
 }
 
 func (b *Board) promote(piece string) uint8 {
