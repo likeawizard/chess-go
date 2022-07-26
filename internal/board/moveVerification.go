@@ -5,31 +5,31 @@ import (
 	"strings"
 )
 
-func (b *Board) VerifyMove(longalg string) bool {
-	from, _ := longAlgToCoords(longalg)
-	moves, captures := b.GetAvailableMoves(from)
+// func (b *Board) VerifyMove(longalg string) bool {
+// 	from, _ := longAlgToCoords(longalg)
+// 	moves, captures := b.GetAvailableMoves(from)
 
-	_, color := GetPiece(b, from)
+// 	_, color := GetPiece(b, from)
 
-	if color != b.SideToMove {
-		return false
-	}
+// 	if color != b.SideToMove {
+// 		return false
+// 	}
 
-	for _, move := range moves {
-		if move == longalg {
-			return true
-		}
-	}
+// 	for _, move := range moves {
+// 		if move == longalg {
+// 			return true
+// 		}
+// 	}
 
-	for _, capture := range captures {
-		if capture == longalg {
-			return true
-		}
-	}
+// 	for _, capture := range captures {
+// 		if capture == longalg {
+// 			return true
+// 		}
+// 	}
 
-	return false
+// 	return false
 
-}
+// }
 
 func isOpponentPiece(b *Board, source, target Coord) bool {
 	piece, color := GetPiece(b, target)
@@ -535,11 +535,13 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 		)
 
 		if b.CastlingRights&WOOO != 0 && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
+			b.Coords[1][1] != p && b.Coords[2][1] != p && b.Coords[4][1] != p &&
 			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1c1")
 		}
 
 		if b.CastlingRights&WOO != 0 && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
+			b.Coords[6][1] != p && b.Coords[7][1] != p && b.Coords[4][1] != p &&
 			!strings.Contains(moveDest, "f1") && !strings.Contains(moveDest, "g1") && !strings.Contains(captureDest, "e1") {
 			moves = append(moves, "e1g1")
 		}
@@ -556,11 +558,13 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 		)
 
 		if b.CastlingRights&BOOO != 0 && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
+			b.Coords[1][6] != P && b.Coords[2][6] != P && b.Coords[4][6] != P &&
 			!strings.Contains(moveDest, "c8") && !strings.Contains(moveDest, "d8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8c8")
 		}
 
 		if b.CastlingRights&BOO != 0 && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
+			b.Coords[6][6] != P && b.Coords[7][6] != P && b.Coords[4][6] != P &&
 			!strings.Contains(moveDest, "f8") && !strings.Contains(moveDest, "g8") && !strings.Contains(captureDest, "e8") {
 			moves = append(moves, "e8g8")
 		}
