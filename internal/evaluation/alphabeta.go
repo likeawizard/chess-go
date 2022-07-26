@@ -58,6 +58,11 @@ func (e *EvalEngine) alphabetaSerialWithTimeout(ctx context.Context, n *Node, de
 		n.Evaluation = e.EvalFunction(e, n.Position)
 		return n.Evaluation
 	default:
+		if val, ok := e.TTable[n.Position.Hash]; ok {
+			// TThit++
+			// storeVariations(n, n.Position.Hash)
+			return val
+		}
 		if depth == 0 {
 			n.Evaluation = e.EvalFunction(e, n.Position)
 			return n.Evaluation
@@ -79,10 +84,10 @@ func (e *EvalEngine) alphabetaSerialWithTimeout(ctx context.Context, n *Node, de
 				}
 				alpha = Max32(alpha, value)
 			}
-			if n != nil {
-				n.Evaluation = value
-			}
 
+			e.TTable[n.Position.Hash] = value
+			// storeVariations(n, n.Position.Hash)
+			n.Evaluation = value
 			return value
 		} else {
 			value = posInf
@@ -94,22 +99,47 @@ func (e *EvalEngine) alphabetaSerialWithTimeout(ctx context.Context, n *Node, de
 				}
 				beta = Min32(beta, value)
 			}
-			if n != nil {
-				n.Evaluation = value
-			}
+
+			e.TTable[n.Position.Hash] = value
+			// storeVariations(n, n.Position.Hash)
+			n.Evaluation = value
 			return value
 		}
 	}
 }
 
+// func storeVariations(n *Node, hash uint64) {
+// 	variation := ""
+// 	for n.Parent != nil {
+// 		variation = n.MoveToPlay + " " + variation
+// 		n = n.Parent
+// 	}
+// 	TTDebug[hash] = append(TTDebug[hash], variation)
+// }
+
+// var TThit uint64
+
+// var TTDebug map[uint64][]string
+
+// func printTrans() {
+// 	for hash, vari := range TTDebug {
+// 		if len(vari) > 1 {
+// 			fmt.Printf("%d: %v\n", hash, vari)
+// 		}
+// 	}
+// }
+
 func (e *EvalEngine) alphaBetaWithOrdering(ctx context.Context, n *Node, depth int, alpha, beta float32, isWhite bool) *Node {
 	var best *Node
 	var wg sync.WaitGroup
-
 	// start := time.Now()
 	wg.Add(1)
 	go func() {
 		for d := 1; d <= depth; d++ {
+			e.TTable = make(map[uint64]float32)
+			// TTDebug = make(map[uint64][]string)
+			// TThit = 0
+			// e.Evaluations = 0
 			// currTime := time.Now()
 			e.alphabetaSerialWithTimeout(ctx, n, d, alpha, beta, isWhite)
 			select {
@@ -124,7 +154,8 @@ func (e *EvalEngine) alphaBetaWithOrdering(ctx context.Context, n *Node, depth i
 				_ = nodes
 				// bFactor := math.Pow(float64(nodes), 1.0/float64(d))
 				// fmt.Printf("Best move: %s. Found at depth: %d (branching factor: %v time spent: total = %v at depth = %v estimate on next step: %v)\n", best.MoveToPlay, d, bFactor, time.Since(start), time.Since(currTime), time.Duration(time.Since(start)*time.Duration(bFactor)))
-				// fmt.Printf("Best move: %s. Found at depth: %d (time spent: total = %v at depth = %v)\n", best.MoveToPlay, d, time.Since(start), time.Since(currTime))
+				// fmt.Printf("Best move: %s. Found at depth: %d (time spent: total = %v at depth = %v) (Nodes: %d TT Hits:%d TT Size: %d)\n", best.MoveToPlay, d, time.Since(start), time.Since(currTime), e.Evaluations, TThit, len(e.TTable))
+				// printTrans()
 			}
 		}
 		wg.Done()

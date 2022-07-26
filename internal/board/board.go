@@ -23,6 +23,7 @@ func (b *Board) InitDefault() {
 
 func (b *Board) Copy() *Board {
 	return &Board{
+		Hash:            b.Hash,
 		Coords:          b.Coords,
 		SideToMove:      b.SideToMove,
 		CastlingRights:  b.CastlingRights,
@@ -40,6 +41,7 @@ func (b *Board) Copy() *Board {
 // Only copy fields necessary for gametree construction
 func (b *Board) SimpleCopy() *Board {
 	return &Board{
+		Hash:            b.Hash,
 		Coords:          b.Coords,
 		SideToMove:      b.SideToMove,
 		CastlingRights:  b.CastlingRights,
