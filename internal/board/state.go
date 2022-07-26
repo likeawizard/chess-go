@@ -4,26 +4,40 @@ import (
 	"math"
 )
 
-func (b *Board) updateCastlingRights(from Coord) {
+func (b *Board) updateCastlingRights(from, to Coord) {
 	if b.CastlingRights == 0 {
 		return
 	}
-	square := CoordToAlg(from)
+	squareFrom := CoordToAlg(from)
+	squareTo := CoordToAlg(to)
 
-	switch square {
-	case "a1":
+	switch {
+	case b.CastlingRights&(WOOO|WOO) != 0 && squareFrom == "e1":
+		b.ZobristCastlingRights(WOOO)
+		b.ZobristCastlingRights(WOO)
 		b.CastlingRights = b.CastlingRights &^ WOOO
-	case "h1":
 		b.CastlingRights = b.CastlingRights &^ WOO
-	case "a8":
+
+	case b.CastlingRights&(BOOO|BOO) != 0 && squareFrom == "e8":
+		b.ZobristCastlingRights(BOOO)
+		b.ZobristCastlingRights(BOO)
 		b.CastlingRights = b.CastlingRights &^ BOOO
-	case "h8":
 		b.CastlingRights = b.CastlingRights &^ BOO
-	case "e1":
+
+	case b.CastlingRights&WOOO != 0 && (squareFrom == "a1" || squareTo == "a1"):
+		b.ZobristCastlingRights(WOOO)
 		b.CastlingRights = b.CastlingRights &^ WOOO
+
+	case b.CastlingRights&WOO != 0 && (squareFrom == "h1" || squareTo == "h1"):
+		b.ZobristCastlingRights(WOO)
 		b.CastlingRights = b.CastlingRights &^ WOO
-	case "e8":
+
+	case b.CastlingRights&BOOO != 0 && (squareFrom == "a8" || squareTo == "a8"):
+		b.ZobristCastlingRights(BOOO)
 		b.CastlingRights = b.CastlingRights &^ BOOO
+
+	case b.CastlingRights&BOO != 0 && (squareFrom == "h8" || squareTo == "h8"):
+		b.ZobristCastlingRights(BOO)
 		b.CastlingRights = b.CastlingRights &^ BOO
 	}
 }
@@ -34,14 +48,20 @@ func (b *Board) updateEnPassantTarget(from, to Coord) {
 	isPawnMove := piece == P || piece == p
 	isDoubleMove := int(math.Abs(float64(from.Rank-to.Rank))) == 2
 
+	if b.EnPassantTarget != "-" {
+		b.ZobristEnPassant(b.EnPassantTarget)
+	}
+
 	if isDoubleMove && isPawnMove {
 		b.EnPassantTarget = CoordToAlg(Coord{from.File, (from.Rank + to.Rank) / 2})
+		b.ZobristEnPassant(b.EnPassantTarget)
 	} else {
 		b.EnPassantTarget = "-"
 	}
 }
 
 func (b *Board) updateSideToMove() {
+	b.ZobristSideToMove()
 	if b.SideToMove == WhiteToMove {
 		b.SideToMove = BlackToMove
 	} else {

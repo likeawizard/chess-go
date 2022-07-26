@@ -91,6 +91,8 @@ func (b *Board) ImportFEN(fen string) error {
 	}
 	b.EnPassantTarget = enPassant
 
+	b.Hash = b.SeedHash()
+
 	return nil
 }
 

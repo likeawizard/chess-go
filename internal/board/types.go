@@ -16,6 +16,7 @@ package board
 12 bk
 */
 type Board struct {
+	Hash            uint64
 	Coords          [8][8]uint8
 	SideToMove      byte
 	CastlingRights  CastlingRights

@@ -13,11 +13,11 @@ type perftTest struct {
 }
 
 func main() {
-	depth := 6
+	depth := 4
 	// board.PerftDebug("r3k2N/p1ppq1b1/1n2pnp1/1b1P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQq - 0 2", depth)
-	// perft1(depth)
-	// perft2(depth)
-	// perft3(8)
+	perft1(depth)
+	perft2(depth)
+	perft3(depth)
 	perft4(depth)
 }
 
