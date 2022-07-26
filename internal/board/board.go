@@ -62,15 +62,18 @@ func (b *Board) MoveLongAlg(longalg string) {
 		b.Coords[from.File][from.Rank] = empty
 		b.Coords[to.File][from.Rank] = empty
 	case len(longalg) == 5:
-		b.Coords[to.File][to.Rank] = b.promote(longalg[4:])
+		promoteTo := b.promote(longalg[4:])
+		b.ZobristPromotion(from, to, promoteTo)
+		b.Coords[to.File][to.Rank] = promoteTo
 		b.Coords[from.File][from.Rank] = empty
 	default:
+		b.ZobristSimpleMove(from, to)
 		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
 		b.Coords[from.File][from.Rank] = empty
 	}
 
 	b.updateEnPassantTarget(from, to)
-	b.updateCastlingRights(from)
+	b.updateCastlingRights(from, to)
 	b.updateSideToMove()
 }
 
