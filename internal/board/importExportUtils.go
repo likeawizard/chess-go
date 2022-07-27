@@ -11,9 +11,9 @@ func (b *Board) ExportFEN() string {
 	var fen string
 	var emptySquaresCounter int
 	var piece uint8
-	for r := len(b.Coords) - 1; r >= 0; r-- {
-		for f := 0; f < len(b.Coords); f++ {
-			piece = b.Coords[f][r]
+	for r := 7; r >= 0; r-- {
+		for f := 0; f < 8; f++ {
+			piece = b.Coords[f+r*8]
 			if piece == 0 {
 				emptySquaresCounter++
 			} else {
@@ -33,19 +33,30 @@ func (b *Board) ExportFEN() string {
 		}
 	}
 	castlingRights := ""
-	if b.CastlingRights&WOO != 0 {
-		castlingRights += "K"
+	if b.CastlingRights != 0 {
+		if b.CastlingRights&WOO != 0 {
+			castlingRights += "K"
+		}
+		if b.CastlingRights&WOOO != 0 {
+			castlingRights += "Q"
+		}
+		if b.CastlingRights&BOO != 0 {
+			castlingRights += "k"
+		}
+		if b.CastlingRights&BOOO != 0 {
+			castlingRights += "q"
+		}
+		if castlingRights == "" {
+			castlingRights = "-"
+		}
 	}
-	if b.CastlingRights&WOOO != 0 {
-		castlingRights += "Q"
+
+	epString := "-"
+	if b.EnPassantTarget != -1 {
+		epString = b.EnPassantTarget.String()
 	}
-	if b.CastlingRights&BOO != 0 {
-		castlingRights += "k"
-	}
-	if b.CastlingRights&BOOO != 0 {
-		castlingRights += "q"
-	}
-	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, castlingRights, b.EnPassantTarget, b.HalfMoveCounter, b.FullMoveCounter)
+
+	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, castlingRights, epString, b.HalfMoveCounter, b.FullMoveCounter)
 	return fen
 }
 
@@ -89,19 +100,24 @@ func (b *Board) ImportFEN(fen string) error {
 			b.CastlingRights = b.CastlingRights | BOOO
 		}
 	}
-	b.EnPassantTarget = enPassant
+
+	if enPassant != "-" {
+		b.EnPassantTarget = SquareFromString(enPassant)
+	} else {
+		b.EnPassantTarget = -1
+	}
 
 	b.Hash = b.SeedHash()
 
 	return nil
 }
 
-func parsePosition(position string) ([8][8]uint8, error) {
+func parsePosition(position string) ([64]uint8, error) {
 	var (
 		f = 0
 		r = 7
 	)
-	c := [8][8]uint8{}
+	c := [64]uint8{}
 	for _, char := range position {
 		symbol := string(char)
 		offset, err := strconv.Atoi(symbol)
@@ -113,7 +129,7 @@ func parsePosition(position string) ([8][8]uint8, error) {
 				break
 			} else {
 				piece := PieceSymbolToInt(symbol)
-				c[f][r] = piece
+				c[f+r*8] = piece
 				f++
 			}
 		} else {
@@ -144,9 +160,9 @@ func (b *Board) GeneratePGN() string {
 
 func (b *Board) MoveToPretty(move string) (pretty string) {
 	var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
-	from, to := longAlgToCoords(move)
-	targetPiece := b.AccessCoord(to)
-	piece := b.AccessCoord(from)
+	from, to := MoveFromString(move).FromTo()
+	targetPiece := b.Coords[to]
+	piece := b.Coords[from]
 	moves, captures := b.GetMovesNoCastling(b.SideToMove)
 	all := append(moves, captures...)
 	switch {
@@ -173,16 +189,16 @@ func (b *Board) MoveToPretty(move string) (pretty string) {
 
 func (b *Board) Disambiguate(move string, moves []Move) string {
 	dis := ""
-	from, to := longAlgToCoords(move)
+	from, to := MoveFromString(move).FromTo()
 	for _, m := range moves {
-		f, t := m.ToCoords()
-		if m.String()[:2] == move[:2] || b.AccessCoord(from) != b.AccessCoord(f) {
+		f, t := m.FromTo()
+		if m.String()[:2] == move[:2] || b.Coords[from] != b.Coords[f] {
 			continue
 		}
-		if f.File == from.File && to.Equal(&t) {
+		if (from-f)%8 == 0 && to == t {
 			dis += move[1:2]
 		}
-		if f.Rank == from.Rank && to.Equal(&t) {
+		if f/8 == from/8 && to == t {
 			dis += move[0:1]
 		}
 	}

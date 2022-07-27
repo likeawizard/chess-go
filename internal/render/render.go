@@ -105,13 +105,13 @@ func (render *SimpleAsciiRender) Run() {
 
 func ASCIIRender(b board.Board) string {
 	output := ""
-	for r := len(b.Coords) - 1; r >= 0; r-- {
+	for r := 7; r >= 0; r-- {
 		output += fmt.Sprintf("%d ", r+1)
-		for f := range b.Coords[r] {
-			if b.Coords[f][r] == 0 {
+		for f := 0; f < 8; f++ {
+			if b.Coords[f+r*8] == 0 {
 				output += "0"
 			} else {
-				output += fmt.Sprint(board.Pieces[(b.Coords[f][r] - 1)])
+				output += fmt.Sprint(board.Pieces[(b.Coords[f+r*8] - 1)])
 			}
 		}
 		output += fmt.Sprintln("")

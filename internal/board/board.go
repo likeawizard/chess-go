@@ -50,7 +50,7 @@ func (b *Board) SimpleCopy() *Board {
 }
 
 func (b *Board) MoveLongAlg(move Move) {
-	from, to := move.ToCoords()
+	from, to := move.FromTo()
 	if b.TrackMoves {
 		b.TrackMove(move)
 	}
@@ -58,9 +58,13 @@ func (b *Board) MoveLongAlg(move Move) {
 	case b.IsCastling(move):
 		b.castle(move)
 	case b.isEnPassant(move):
-		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
-		b.Coords[from.File][from.Rank] = empty
-		b.Coords[to.File][from.Rank] = empty
+		b.Coords[to] = b.Coords[from]
+		b.Coords[from] = empty
+		direction := 8
+		if b.SideToMove == BlackToMove {
+			direction = -8
+		}
+		b.Coords[to-Square(direction)] = empty
 	case move.Promotion() != 0:
 		promoteTo := move.Promotion()
 		offset := uint8(0)
@@ -77,18 +81,23 @@ func (b *Board) MoveLongAlg(move Move) {
 		case 'b':
 			promoteTo = B + offset
 		}
-		b.ZobristPromotion(from, to, promoteTo)
-		b.Coords[to.File][to.Rank] = promoteTo
-		b.Coords[from.File][from.Rank] = empty
+
+		b.ZobristPromotion(move)
+		b.Coords[to] = promoteTo
+		b.Coords[from] = empty
 	default:
-		b.ZobristSimpleMove(from, to)
-		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
-		b.Coords[from.File][from.Rank] = empty
+		b.ZobristSimpleMove(move)
+		b.move(move)
 	}
 
-	b.updateEnPassantTarget(from, to)
-	b.updateCastlingRights(from, to)
+	b.updateEnPassantTarget(move)
+	b.updateCastlingRights(move)
 	b.updateSideToMove()
+}
+
+func (b *Board) move(move Move) {
+	b.Coords[move.To()] = b.Coords[move.From()]
+	b.Coords[move.From()] = empty
 }
 
 func (b *Board) promote(piece string) uint8 {
@@ -112,41 +121,22 @@ func (b *Board) promote(piece string) uint8 {
 func (b *Board) castle(move Move) {
 	switch move {
 	case WCastleKing:
-		b.Coords[4][0] = empty
-		b.Coords[6][0] = K
-		b.Coords[7][0] = empty
-		b.Coords[5][0] = R
+		b.move(WCastleKing)
+		b.move(WCastleKingRook)
 	case WCastleQueen:
-		b.Coords[4][0] = empty
-		b.Coords[2][0] = K
-		b.Coords[0][0] = empty
-		b.Coords[3][0] = R
+		b.move(WCastleQueen)
+		b.move(WCastleQueenRook)
 	case BCastleKing:
-		b.Coords[4][7] = empty
-		b.Coords[6][7] = k
-		b.Coords[7][7] = empty
-		b.Coords[5][7] = r
+		b.move(BCastleKing)
+		b.move(BCastleKingRook)
 	case BCastleQueen:
-		b.Coords[4][7] = empty
-		b.Coords[2][7] = k
-		b.Coords[0][7] = empty
-		b.Coords[3][7] = r
+		b.move(BCastleQueen)
+		b.move(BCastleQueenRook)
 	}
 }
 
-func (b *Board) AccessCoord(c Coord) uint8 {
-	return b.Coords[c.File][c.Rank]
-}
-
-func CoordInBounds(c Coord) bool {
-	return c.Rank <= 7 && c.Rank >= 0 && c.File <= 7 && c.File >= 0
-}
-
-func longAlgToCoords(longalg string) (from, to Coord) {
-	from = AlgToCoord(longalg[:2])
-	to = AlgToCoord(longalg[2:])
-
-	return
+func CoordInBounds(c Square) bool {
+	return c >= 0 && c < 64
 }
 
 func fileToCoord(file rune) int {
@@ -156,20 +146,6 @@ func fileToCoord(file rune) int {
 		}
 	}
 	return 0
-}
-
-func (c *Coord) Equal(a *Coord) bool {
-	return c.File == a.File && c.Rank == a.Rank
-}
-
-func CoordToAlg(c Coord) string {
-	return Files[c.File] + string(rune(c.Rank+1+'0'))
-}
-
-func AlgToCoord(alg string) (c Coord) {
-	chars := []rune(alg)
-	c = Coord{File: fileToCoord(chars[0]), Rank: int(chars[1]-'0') - 1}
-	return c
 }
 
 func (b *Board) SetTrackMoves(trackmoves bool) {

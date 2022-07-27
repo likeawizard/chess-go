@@ -1,13 +1,77 @@
 package board
 
-import (
-	"fmt"
-)
+// N, S, W, E, NW, NE, SW, SE
+// 0:4 ranks & files, 4:8 diagonals
+var compass = []Square{8, -8, -1, 1, 7, 9, -9, -7}
 
-func isOpponentPiece(b *Board, source, target Coord) bool {
-	piece, color := GetPiece(b, target)
-	_, ownColor := GetPiece(b, source)
-	return piece != 0 && color != ownColor
+// Number of squares to the edge in compass direction
+var compassBlock = [][]Square{}
+
+var knightMoves = [][]Square{}
+
+func init() {
+	compassBlock = make([][]Square, 64)
+	min := func(a, b Square) Square {
+		if a < b {
+			return a
+		}
+		return b
+	}
+	for i := Square(0); i < 64; i++ {
+		f, r := i%8, i/8
+		n := 7 - r
+		s := r
+		w := f
+		e := 7 - f
+		compassBlock[i] = []Square{n, s, w, e, min(n, w), min(n, e), min(s, w), min(s, e)}
+	}
+	preCalculateKnightMoves()
+}
+
+func preCalculateKnightMoves() {
+	// var knightVector = [8]Square{15, 17, 10, 6, -15, -17, -10, -6}
+	knightMoves = make([][]Square, 64)
+	for c, comp := range compassBlock {
+		moves := make([]Square, 0)
+		//2NW
+		if comp[0] > 1 && comp[2] > 0 {
+			moves = append(moves, Square(c)+15)
+		}
+		//2NE
+		if comp[0] > 1 && comp[3] > 0 {
+			moves = append(moves, Square(c)+17)
+		}
+		//2SW
+		if comp[1] > 1 && comp[2] > 0 {
+			moves = append(moves, Square(c)-17)
+		}
+		//2SE
+		if comp[1] > 1 && comp[3] > 0 {
+			moves = append(moves, Square(c)-15)
+		}
+		//2WN
+		if comp[2] > 1 && comp[0] > 0 {
+			moves = append(moves, Square(c)+6)
+		}
+		//2WS
+		if comp[2] > 1 && comp[1] > 0 {
+			moves = append(moves, Square(c)-10)
+		}
+		//2EN
+		if comp[3] > 1 && comp[0] > 0 {
+			moves = append(moves, Square(c)+10)
+		}
+		//2ES
+		if comp[3] > 1 && comp[1] > 0 {
+			moves = append(moves, Square(c)-6)
+		}
+		knightMoves[c] = moves
+	}
+}
+
+func (b *Board) isOpponentPiece(us, them Square) bool {
+	ourPiece, theirPiece := b.Coords[us], b.Coords[them]
+	return (ourPiece < 7 && theirPiece >= 7) || (ourPiece >= 7 && theirPiece < 7 && theirPiece != 0)
 }
 
 func (b *Board) IsInCheckAfterMove(move Move) bool {
@@ -34,16 +98,16 @@ func (b *Board) PruneIllegal(moves, captures []Move) ([]Move, []Move) {
 	return legalMoves, legalCaptures
 }
 
-func (b *Board) GetAvailableMoves(c Coord) (availableMoves, availableCaptures []Move) {
+func (b *Board) GetAvailableMoves(c Square) (availableMoves, availableCaptures []Move) {
 	return b.GetAvailableMovesRaw(c, false)
 }
 
-func (b *Board) GetAvailableMovesExcludeCastling(c Coord) (availableMoves, availableCaptures []Move) {
+func (b *Board) GetAvailableMovesExcludeCastling(c Square) (availableMoves, availableCaptures []Move) {
 	return b.GetAvailableMovesRaw(c, true)
 }
 
-func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMoves, availableCaptures []Move) {
-	piece := b.AccessCoord(c)
+func (b *Board) GetAvailableMovesRaw(c Square, excludeCastling bool) (availableMoves, availableCaptures []Move) {
+	piece := b.Coords[c]
 	plainPiece := piece % PieceOffset
 
 	switch {
@@ -65,233 +129,143 @@ func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMo
 }
 
 func (b *Board) IsInCheck(color byte) bool {
-	var targetCoord Coord
+	var target Square
 	iswhite := color == WhiteToMove
-	pawnDirection := -1
+	pawnDirection := Square(-8)
 	offset := uint8(0)
 	king := b.GetKing(color)
-	if king.Rank == 8 {
-		fmt.Println(b.ExportFEN())
-	}
 	if iswhite {
-		pawnDirection = 1
+		pawnDirection = 8
 		offset = 6
 	}
 
-	targetCoord = Coord{File: king.File + 1, Rank: king.Rank + pawnDirection}
-	if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == P+offset {
+	target = king + 1 + pawnDirection
+	if CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
-	targetCoord = Coord{File: king.File - 1, Rank: king.Rank + pawnDirection}
-	if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == P+offset {
+	target = king - 1 + pawnDirection
+	if CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
 
-	for _, knightMove := range knightMoves {
-		targetCoord = Coord{File: king.File + knightMove[0], Rank: king.Rank + knightMove[1]}
-		if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == N+offset {
+	for _, knightMove := range knightMoves[king] {
+		if CoordInBounds(knightMove) && b.Coords[knightMove] == N+offset {
 			return true
 		}
 	}
 
-	var n, w, s, e, ne, nw, se, sw bool = true, true, true, true, true, true, true, true
-	var piece uint8
-	for i := 1; i < 8; i++ {
-		if n {
-			n = king.Rank+i <= 7
-			if n {
-				piece = b.AccessCoord(Coord{king.File, king.Rank + i})
-				if piece == 0 {
+	_, kingThreats := b.GetKingMoves(king, true)
+	_, bishopThreats := b.GetBishopMoves(king)
+	_, rookThreats := b.GetRookMoves(king)
 
-				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					n = false
-				}
-			}
+	for _, diagAttacks := range kingThreats {
+		attacker := b.Coords[diagAttacks.To()]
+		if attacker == Q+offset || attacker == K+offset {
+			return true
 		}
-		if s {
-			s = king.Rank-i >= 0
-			if s {
-				piece = b.AccessCoord(Coord{king.File, king.Rank - i})
-				if piece == 0 {
+	}
 
-				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					s = false
-				}
-			}
+	for _, diagAttacks := range bishopThreats {
+		attacker := b.Coords[diagAttacks.To()]
+		if attacker == Q+offset || attacker == B+offset {
+			return true
 		}
-		if w {
-			w = king.File+i <= 7
-			if w {
-				piece = b.AccessCoord(Coord{king.File + i, king.Rank})
-				if piece == 0 {
+	}
 
-				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					w = false
-				}
-			}
-		}
-		if e {
-			e = king.File-i >= 0
-			if e {
-				piece = b.AccessCoord(Coord{king.File - i, king.Rank})
-				if piece == 0 {
-
-				} else if piece == Q+offset || piece == R+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					e = false
-				}
-			}
-		}
-		if nw {
-			nw = king.File+i <= 7 && king.Rank+i <= 7
-			if nw {
-				piece = b.AccessCoord(Coord{king.File + i, king.Rank + i})
-				if piece == 0 {
-
-				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					nw = false
-				}
-			}
-		}
-		if ne {
-			ne = king.File-i >= 0 && king.Rank+i <= 7
-			if ne {
-				piece = b.AccessCoord(Coord{king.File - i, king.Rank + i})
-				if piece == 0 {
-
-				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					ne = false
-				}
-			}
-		}
-		if se {
-			se = king.File-i >= 0 && king.Rank-i >= 0
-			if se {
-				piece = b.AccessCoord(Coord{king.File - i, king.Rank - i})
-				if piece == 0 {
-
-				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					se = false
-				}
-			}
-		}
-		if sw {
-			sw = king.File+i <= 7 && king.Rank-i >= 0
-			if sw {
-				piece = b.AccessCoord(Coord{king.File + i, king.Rank - i})
-				if piece == 0 {
-
-				} else if piece == Q+offset || piece == B+offset || (i == 1 && piece == K+offset) {
-					return true
-				} else {
-					sw = false
-				}
-			}
+	for _, rookAttacker := range rookThreats {
+		attacker := b.Coords[rookAttacker.To()]
+		if attacker == Q+offset || attacker == R+offset {
+			return true
 		}
 	}
 	return false
 }
 
-var pawnCaptures [2][2]int = [2][2]int{{1, 1}, {-1, 1}}
-
-func (b *Board) GetPawnMoves(c Coord) (moves, captures []Move) {
-	var targetCoord Coord
-	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
+func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
+	var target Square
+	isWhite := b.Coords[c] <= PieceOffset
 	var isFirstMove bool
-	var direction = 1
+	var direction = Square(8)
 	hasPromotion := false
 
 	if isWhite {
-		isFirstMove = c.Rank == 1
+		isFirstMove = c >= 8 && c < 16
 	} else {
-		isFirstMove = c.Rank == 6
-		direction *= -1
+		isFirstMove = c >= 48 && c < 56
+		direction = -8
 	}
 
-	if b.AccessCoord(Coord{c.File, c.Rank + direction}) == 0 {
-		moves = append(moves, CoordsToMove(c, Coord{c.File, c.Rank + direction}))
-		if c.Rank+direction == 7 || c.Rank+direction == 0 {
+	if CoordInBounds(c+direction) && b.Coords[c+direction] == 0 {
+		moves = append(moves, MoveFromSquares(c, c+direction))
+		if c+direction < 15 || c+direction > 55 {
 			hasPromotion = true
 		}
 	}
 
-	if isFirstMove && b.AccessCoord(Coord{c.File, c.Rank + direction}) == 0 && b.AccessCoord(Coord{c.File, c.Rank + 2*direction}) == 0 {
-		moves = append(moves, CoordsToMove(c, Coord{c.File, c.Rank + 2*direction}))
+	if isFirstMove && b.Coords[c+direction] == 0 && b.Coords[c+2*direction] == 0 {
+		moves = append(moves, MoveFromSquares(c, c+2*direction))
 	}
 
-	if c.File > 0 && c.File < 7 {
-		targetCoord = Coord{c.File + 1, c.Rank + direction}
-		if isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
-			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+	if c%8 > 0 && c%8 < 7 {
+		target = c + direction + 1
+		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+			captures = append(captures, MoveFromSquares(c, target))
+			if target < 15 || target > 55 {
 				hasPromotion = true
 			}
 		}
-		targetCoord = Coord{c.File - 1, c.Rank + direction}
-		if isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
-			if c.Rank+direction == 7 || c.Rank+direction == 0 {
-				hasPromotion = true
-			}
-		}
-	}
-
-	if c.File == 0 {
-		targetCoord = Coord{c.File + 1, c.Rank + direction}
-		if isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
-			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+		target = c + direction - 1
+		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+			captures = append(captures, MoveFromSquares(c, target))
+			if target < 15 || target > 55 {
 				hasPromotion = true
 			}
 		}
 	}
 
-	if c.File == 7 {
-		targetCoord = Coord{c.File - 1, c.Rank + direction}
-		if isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
-			if c.Rank+direction == 7 || c.Rank+direction == 0 {
+	if c%8 == 0 {
+		target = c + direction + 1
+		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+			captures = append(captures, MoveFromSquares(c, target))
+			if target < 15 || target > 55 {
 				hasPromotion = true
 			}
 		}
 	}
 
-	if (c.Rank == 3 || c.Rank == 4) && b.EnPassantTarget != "-" {
-		if c.File > 0 && c.File < 7 {
-			targetCoord = Coord{c.File + 1, c.Rank + direction}
-			if CoordToAlg(targetCoord) == b.EnPassantTarget {
-				captures = append(captures, CoordsToMove(c, targetCoord))
+	if c%8 == 7 {
+		target = c + direction - 1
+		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+			captures = append(captures, MoveFromSquares(c, target))
+			if target < 15 || target > 55 {
+				hasPromotion = true
 			}
-			targetCoord = Coord{c.File - 1, c.Rank + direction}
-			if CoordInBounds(targetCoord) && CoordToAlg(targetCoord) == b.EnPassantTarget {
-				captures = append(captures, CoordsToMove(c, targetCoord))
+		}
+	}
+
+	if (c/8 == 3 || c/8 == 4) && b.EnPassantTarget != -1 {
+		if c%8 > 0 && c%8 < 7 {
+			target = c + direction + 1
+			if target == b.EnPassantTarget {
+				captures = append(captures, MoveFromSquares(c, target))
+			}
+			target = c + direction - 1
+			if target == b.EnPassantTarget {
+				captures = append(captures, MoveFromSquares(c, target))
 			}
 		}
 
-		if c.File == 0 {
-			targetCoord = Coord{c.File + 1, c.Rank + direction}
-			if CoordToAlg(targetCoord) == b.EnPassantTarget {
-				captures = append(captures, CoordsToMove(c, targetCoord))
+		if c%8 == 0 {
+			target = c + direction + 1
+			if target == b.EnPassantTarget {
+				captures = append(captures, MoveFromSquares(c, target))
 			}
 		}
 
-		if c.File == 7 {
-			targetCoord = Coord{c.File - 1, c.Rank + direction}
-			if CoordToAlg(targetCoord) == b.EnPassantTarget {
-				captures = append(captures, CoordsToMove(c, targetCoord))
+		if c%8 == 7 {
+			target = c + direction - 1
+			if target == b.EnPassantTarget {
+				captures = append(captures, MoveFromSquares(c, target))
 			}
 		}
 	}
@@ -307,8 +281,8 @@ func (b *Board) addPawnPromotion(moves, captures []Move) ([]Move, []Move) {
 	processMoves := func(moves []Move) []Move {
 		var m []Move
 		for _, move := range moves {
-			_, to := move.ToCoords()
-			if to.Rank == 7 || to.Rank == 0 {
+			to := move.To()
+			if to/8 == 7 || to/8 == 0 {
 				m = append(m, move.SetPromotion('q'), move.SetPromotion('r'), move.SetPromotion('n'), move.SetPromotion('b'))
 			} else {
 				m = append(m, move)
@@ -320,174 +294,76 @@ func (b *Board) addPawnPromotion(moves, captures []Move) ([]Move, []Move) {
 	return processMoves(moves), processMoves(captures)
 }
 
-func (b *Board) GetBishopMoves(c Coord) (moves, captures []Move) {
-	var ul, ur, dl, dr bool = true, true, true, true
-	var targetCoord Coord
-	for i := 1; i < 8; i++ {
-		if ur {
-			ur = c.Rank+i <= 7 && c.File+i <= 7
-			targetCoord = Coord{c.File + i, c.Rank + i}
-			if ur && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if ur && isOpponentPiece(b, c, targetCoord) {
-				ur = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				ur = false
-			}
-		}
-		if dr {
-			dr = c.Rank-i >= 0 && c.File+i <= 7
-			targetCoord = Coord{c.File + i, c.Rank - i}
-			if dr && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if dr && isOpponentPiece(b, c, targetCoord) {
-				dr = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				dr = false
-			}
-		}
+func (b *Board) GetSlidingMoves(c Square, mode SlideMode) (moves, captures []Move) {
+	var target Square
 
-		if ul {
-			ul = c.Rank+i <= 7 && c.File-i >= 0
-			targetCoord = Coord{c.File - i, c.Rank + i}
-			if ul && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if ul && isOpponentPiece(b, c, targetCoord) {
-				ul = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				ul = false
+	compassMin, compassMax := 0, 8
+	switch mode {
+	case BISHOP:
+		compassMin = 4
+	case ROOK:
+		compassMax = 4
+	}
+
+	for dirIdx := compassMin; dirIdx < compassMax; dirIdx++ {
+		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
+			target = c + i*compass[dirIdx]
+			if CoordInBounds(target) {
+				if b.Coords[target] == 0 {
+					moves = append(moves, MoveFromSquares(c, target))
+				} else if b.isOpponentPiece(c, target) {
+					captures = append(captures, MoveFromSquares(c, target))
+					break
+				} else {
+					break
+				}
 			}
 		}
+	}
 
-		if dl {
-			dl = c.Rank-i >= 0 && c.File-i >= 0
-			targetCoord = Coord{c.File - i, c.Rank - i}
-			if dl && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if dl && isOpponentPiece(b, c, targetCoord) {
-				dl = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				dl = false
-			}
-		}
-		if !ur && !ul && !dr && !dl {
-			break
-		}
+	return
+}
 
+type SlideMode byte
+
+const (
+	ROOK SlideMode = iota
+	BISHOP
+	QUEEN
+)
+
+func (b *Board) GetBishopMoves(c Square) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, BISHOP)
+}
+
+func (b *Board) GetRookMoves(c Square) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, ROOK)
+}
+
+func (b *Board) GetQueenMoves(c Square) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, QUEEN)
+}
+
+func (b *Board) GetKnightMoves(c Square) (moves, captures []Move) {
+	for _, knightMove := range knightMoves[c] {
+		if b.Coords[knightMove] == 0 {
+			moves = append(moves, MoveFromSquares(c, knightMove))
+		} else if b.isOpponentPiece(c, knightMove) {
+			captures = append(captures, MoveFromSquares(c, knightMove))
+		}
 	}
 	return
 }
 
-var knightMoves = [8][2]int{{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}}
-
-func (b *Board) GetKnightMoves(c Coord) (moves, captures []Move) {
-	var targetCoord Coord
-
+func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []Move) {
 	for i := 0; i < 8; i++ {
-		targetCoord = Coord{
-			c.File + knightMoves[i][0], c.Rank + knightMoves[i][1],
-		}
-		if !CoordInBounds(targetCoord) {
+		if compassBlock[c][i] == 0 {
 			continue
 		}
-		if b.AccessCoord(targetCoord) == 0 {
-			moves = append(moves, CoordsToMove(c, targetCoord))
-		} else if isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
-		}
-
-	}
-
-	return
-}
-
-func (b *Board) GetRookMoves(c Coord) (moves, captures []Move) {
-	var u, d, l, r bool = true, true, true, true
-	var targetCoord Coord
-	for i := 1; i < 8; i++ {
-		if u {
-			u = c.Rank+i <= 7
-			targetCoord = Coord{c.File, c.Rank + i}
-			if u && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if u && isOpponentPiece(b, c, targetCoord) {
-				u = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				u = false
-			}
-		}
-		if d {
-			d = c.Rank-i >= 0
-			targetCoord = Coord{c.File, c.Rank - i}
-			if d && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if d && isOpponentPiece(b, c, targetCoord) {
-				d = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				d = false
-			}
-		}
-
-		if l {
-			l = c.File-i >= 0
-			targetCoord = Coord{c.File - i, c.Rank}
-			if l && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if l && isOpponentPiece(b, c, targetCoord) {
-				l = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				l = false
-			}
-		}
-
-		if r {
-			r = c.File+i <= 7
-			targetCoord = Coord{c.File + i, c.Rank}
-			if r && b.AccessCoord(targetCoord) == 0 {
-				moves = append(moves, CoordsToMove(c, targetCoord))
-			} else if r && isOpponentPiece(b, c, targetCoord) {
-				r = false
-				captures = append(captures, CoordsToMove(c, targetCoord))
-			} else {
-				r = false
-			}
-		}
-		if !u && !d && !l && !r {
-			break
-		}
-
-	}
-	return
-}
-
-func (b *Board) GetQueenMoves(c Coord) (moves, captures []Move) {
-	bishopMoves, bishopCaptures := b.GetBishopMoves(c)
-	rookMoves, rookCaptures := b.GetRookMoves(c)
-	moves = append(bishopMoves, rookMoves...)
-	captures = append(bishopCaptures, rookCaptures...)
-	return
-}
-
-func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []Move) {
-	var kingMoves = [8][2]int{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
-	var targetCoord Coord
-
-	for i := 0; i < 8; i++ {
-		targetCoord = Coord{
-			c.File + kingMoves[i][0], c.Rank + kingMoves[i][1],
-		}
-
-		if CoordInBounds(targetCoord) && b.AccessCoord(targetCoord) == 0 {
-			moves = append(moves, CoordsToMove(c, targetCoord))
-		} else if CoordInBounds(targetCoord) && isOpponentPiece(b, c, targetCoord) {
-			captures = append(captures, CoordsToMove(c, targetCoord))
+		if CoordInBounds(c+compass[i]) && b.Coords[c+compass[i]] == 0 {
+			moves = append(moves, MoveFromSquares(c, c+compass[i]))
+		} else if CoordInBounds(c+compass[i]) && b.isOpponentPiece(c, c+compass[i]) {
+			captures = append(captures, MoveFromSquares(c, c+compass[i]))
 		}
 	}
 
@@ -500,22 +376,29 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []M
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (
-			c1 = Coord{2, 0}
-			d1 = Coord{3, 0}
-			b1 = Coord{1, 0}
-			f1 = Coord{5, 0}
-			g1 = Coord{6, 0}
+			b1 = Square(1)
+			c1 = Square(2)
+			d1 = Square(3)
+			e1 = Square(4)
+			f1 = Square(5)
+			g1 = Square(6)
+
+			b2 = Square(9)
+			c2 = Square(10)
+			e2 = Square(12)
+			g2 = Square(14)
+			h2 = Square(15)
 		)
 
-		if b.CastlingRights&WOOO != 0 && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
-			b.Coords[1][1] != p && b.Coords[2][1] != p && b.Coords[4][1] != p &&
-			!containsSqaure(moveDest, SquareFromString("c1")) && !containsSqaure(moveDest, SquareFromString("d1")) && !containsSqaure(captureDest, SquareFromString("e1")) {
+		if b.CastlingRights&WOOO != 0 && b.Coords[c1] == 0 && b.Coords[b1] == 0 && b.Coords[d1] == 0 &&
+			b.Coords[b2] != p && b.Coords[c2] != p && b.Coords[e2] != p &&
+			!containsSqaure(moveDest, c1) && !containsSqaure(moveDest, d1) && !containsSqaure(captureDest, e1) {
 			moves = append(moves, WCastleQueen)
 		}
 
-		if b.CastlingRights&WOO != 0 && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
-			b.Coords[6][1] != p && b.Coords[7][1] != p && b.Coords[4][1] != p &&
-			!containsSqaure(moveDest, SquareFromString("f1")) && !containsSqaure(moveDest, SquareFromString("g1")) && !containsSqaure(captureDest, SquareFromString("e1")) {
+		if b.CastlingRights&WOO != 0 && b.Coords[f1] == 0 && b.Coords[g1] == 0 &&
+			b.Coords[g2] != p && b.Coords[h2] != p && b.Coords[e2] != p &&
+			!containsSqaure(moveDest, f1) && !containsSqaure(moveDest, g1) && !containsSqaure(captureDest, e1) {
 			moves = append(moves, WCastleKing)
 		}
 	} else {
@@ -523,22 +406,30 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []M
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (
-			c8 = Coord{2, 7}
-			d8 = Coord{3, 7}
-			b8 = Coord{1, 7}
-			f8 = Coord{5, 7}
-			g8 = Coord{6, 7}
+			b8 = Square(57)
+			c8 = Square(58)
+			d8 = Square(59)
+			e8 = Square(60)
+			f8 = Square(61)
+			g8 = Square(62)
+
+			b7 = Square(49)
+			c7 = Square(50)
+			e7 = Square(52)
+			g7 = Square(54)
+			h7 = Square(55)
 		)
 
-		if b.CastlingRights&BOOO != 0 && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
-			b.Coords[1][6] != P && b.Coords[2][6] != P && b.Coords[4][6] != P &&
-			!containsSqaure(moveDest, SquareFromString("c8")) && !containsSqaure(moveDest, SquareFromString("d8")) && !containsSqaure(captureDest, SquareFromString("e8")) {
+		if b.CastlingRights&BOOO != 0 && b.Coords[c8] == 0 && b.Coords[b8] == 0 && b.Coords[d8] == 0 &&
+			b.Coords[b7] != P && b.Coords[c7] != P && b.Coords[e7] != P &&
+
+			!containsSqaure(moveDest, c8) && !containsSqaure(moveDest, d8) && !containsSqaure(captureDest, e8) {
 			moves = append(moves, BCastleQueen)
 		}
 
-		if b.CastlingRights&BOO != 0 && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
-			b.Coords[6][6] != P && b.Coords[7][6] != P && b.Coords[4][6] != P &&
-			!containsSqaure(moveDest, SquareFromString("f8")) && !containsSqaure(moveDest, SquareFromString("g8")) && !containsSqaure(captureDest, SquareFromString("e8")) {
+		if b.CastlingRights&BOO != 0 && b.Coords[f8] == 0 && b.Coords[g8] == 0 &&
+			b.Coords[g7] != P && b.Coords[h7] != P && b.Coords[e7] != P &&
+			!containsSqaure(moveDest, f8) && !containsSqaure(moveDest, g8) && !containsSqaure(captureDest, e8) {
 			moves = append(moves, BCastleKing)
 		}
 	}
@@ -565,8 +456,8 @@ func (b *Board) IsCastling(move Move) bool {
 	if b.CastlingRights&CASTLING_ALL == 0 {
 		return false
 	}
-	from, _ := move.ToCoords()
-	king := b.AccessCoord(from)
+	from := move.From()
+	king := b.Coords[from]
 	if king != K && king != k {
 		return false
 	}
@@ -590,8 +481,7 @@ func (b *Board) IsCastling(move Move) bool {
 }
 
 func (b *Board) isEnPassant(move Move) bool {
-	from, _ := move.ToCoords()
-	to := move.To().String()
-	piece := b.AccessCoord(from)
+	from, to := move.FromTo()
+	piece := b.Coords[from]
 	return (piece == 1 || piece == 7) && to == b.EnPassantTarget
 }

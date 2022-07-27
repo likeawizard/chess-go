@@ -6,10 +6,17 @@ import (
 )
 
 var (
+	// Castling moves. Used for recognizing castling and moving king during castling
 	WCastleKing  = MoveFromString("e1g1")
 	WCastleQueen = MoveFromString("e1c1")
 	BCastleKing  = MoveFromString("e8g8")
 	BCastleQueen = MoveFromString("e8c8")
+
+	// Complimentary castling moves. Used during castling to reposition rook
+	WCastleKingRook  = MoveFromString("h1f1")
+	WCastleQueenRook = MoveFromString("a1d1")
+	BCastleKingRook  = MoveFromString("h8f8")
+	BCastleQueenRook = MoveFromString("a8d8")
 )
 
 // 0..7 a1 to h1
@@ -23,18 +30,10 @@ func SquareFromString(s string) Square {
 	return Square(file + rank*8)
 }
 
-func SquareFromCoord(c Coord) Square {
-	return Square(c.File + c.Rank*8)
-}
-
 func (s Square) String() string {
 	rank := s/8 + 1
 	file := s % 8
 	return fmt.Sprintf("%c%d", file+'a', rank)
-}
-
-func (s Square) ToCoord() Coord {
-	return Coord{File: int(s % 8), Rank: int(s / 8)}
 }
 
 // MSB ----------------- LSB
@@ -50,6 +49,11 @@ func MoveFromString(s string) Move {
 		promotion = int(s[4]) << 12
 	}
 	return Move(from + to + Square(promotion))
+}
+
+func MoveFromSquares(from, to Square) Move {
+	from = from << 6
+	return Move(from + to)
 }
 
 func (m Move) From() Square {
@@ -70,14 +74,8 @@ func (m Move) SetPromotion(prom uint8) Move {
 	return m
 }
 
-func (m Move) ToCoords() (Coord, Coord) {
-	return m.From().ToCoord(), m.To().ToCoord()
-}
-
-func CoordsToMove(from, to Coord) Move {
-	ff := SquareFromCoord(from) << 6
-	tt := SquareFromCoord(to)
-	return Move(ff + tt)
+func (m Move) FromTo() (Square, Square) {
+	return m.From(), m.To()
 }
 
 func (m Move) String() string {
