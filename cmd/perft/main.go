@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
@@ -12,13 +13,23 @@ type perftTest struct {
 	count int
 }
 
+var containsError bool
+
 func main() {
 	depth := 4
-	// board.PerftDebug("r3k2N/p1ppq1b1/1n2pnp1/1b1P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQq - 0 2", depth)
+	start := time.Now()
 	perft1(depth)
 	perft2(depth)
 	perft3(depth)
 	perft4(depth)
+	perft5(depth)
+	perft6(depth)
+
+	if !containsError {
+		fmt.Printf("\nAll tests passed successfully. Total time: %v\n", time.Since(start))
+	} else {
+		fmt.Println("\nEncountered errors")
+	}
 }
 
 func test(fen string, depth int, data []perftTest) {
@@ -28,6 +39,9 @@ func test(fen string, depth int, data []perftTest) {
 		}
 		leafs, perf := board.Perft(fen, perft.depth)
 		fmt.Printf("%s: %d %v %v\n", perft.name, leafs, perf, leafs == perft.count)
+		if leafs != perft.count {
+			containsError = true
+		}
 		depth--
 	}
 	fmt.Println()
@@ -43,6 +57,9 @@ func perft1(depth int) {
 		{name: "depth5", depth: 5, count: 4865609},
 		{name: "depth6", depth: 6, count: 119060324},
 		{name: "depth7", depth: 7, count: 3195901860},
+		{name: "depth8", depth: 8, count: 84998978956},
+		{name: "depth9", depth: 9, count: 2439530234167},
+		{name: "depth10", depth: 10, count: 69352859712417},
 	}
 	fmt.Println("Test 1")
 	test(fen, depth, tests)
@@ -71,8 +88,8 @@ func perft3(depth int) {
 		{name: "depth4", depth: 4, count: 43238},
 		{name: "depth5", depth: 5, count: 674624},
 		{name: "depth6", depth: 6, count: 11030083},
-		{name: "depth6", depth: 7, count: 178633661},
-		{name: "depth6", depth: 8, count: 3009794393},
+		{name: "depth7", depth: 7, count: 178633661},
+		{name: "depth8", depth: 8, count: 3009794393},
 	}
 	fmt.Println("Test 3")
 	test(fen, depth, tests)
@@ -88,6 +105,36 @@ func perft4(depth int) {
 		{name: "depth5", depth: 5, count: 15833292},
 		{name: "depth6", depth: 6, count: 706045033},
 	}
-	fmt.Println("Test 3")
+	fmt.Println("Test 4")
+	test(fen, depth, tests)
+}
+
+func perft5(depth int) {
+	fen := "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"
+	tests := []perftTest{
+		{name: "depth1", depth: 1, count: 44},
+		{name: "depth2", depth: 2, count: 1486},
+		{name: "depth3", depth: 3, count: 62379},
+		{name: "depth4", depth: 4, count: 2103487},
+		{name: "depth5", depth: 5, count: 89941194},
+	}
+	fmt.Println("Test 5")
+	test(fen, depth, tests)
+}
+
+func perft6(depth int) {
+	fen := "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"
+	tests := []perftTest{
+		{name: "depth1", depth: 1, count: 46},
+		{name: "depth2", depth: 2, count: 2079},
+		{name: "depth3", depth: 3, count: 89890},
+		{name: "depth4", depth: 4, count: 3894594},
+		{name: "depth5", depth: 5, count: 164075551},
+		{name: "depth6", depth: 6, count: 6923051137},
+		{name: "depth7", depth: 7, count: 287188994746},
+		{name: "depth8", depth: 8, count: 11923589843526},
+		{name: "depth9", depth: 9, count: 490154852788714},
+	}
+	fmt.Println("Test 6")
 	test(fen, depth, tests)
 }
