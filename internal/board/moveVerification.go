@@ -2,34 +2,7 @@ package board
 
 import (
 	"fmt"
-	"strings"
 )
-
-// func (b *Board) VerifyMove(longalg string) bool {
-// 	from, _ := longAlgToCoords(longalg)
-// 	moves, captures := b.GetAvailableMoves(from)
-
-// 	_, color := GetPiece(b, from)
-
-// 	if color != b.SideToMove {
-// 		return false
-// 	}
-
-// 	for _, move := range moves {
-// 		if move == longalg {
-// 			return true
-// 		}
-// 	}
-
-// 	for _, capture := range captures {
-// 		if capture == longalg {
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-
-// }
 
 func isOpponentPiece(b *Board, source, target Coord) bool {
 	piece, color := GetPiece(b, target)
@@ -37,16 +10,16 @@ func isOpponentPiece(b *Board, source, target Coord) bool {
 	return piece != 0 && color != ownColor
 }
 
-func (b *Board) IsInCheckAfterMove(move string) bool {
+func (b *Board) IsInCheckAfterMove(move Move) bool {
 	bb := b.Copy()
 	side := bb.SideToMove
 	bb.MoveLongAlg(move)
 	return bb.IsInCheck(side)
 }
 
-func (b *Board) PruneIllegal(moves, captures []string) ([]string, []string) {
-	legalMoves := make([]string, 0)
-	legalCaptures := make([]string, 0)
+func (b *Board) PruneIllegal(moves, captures []Move) ([]Move, []Move) {
+	legalMoves := make([]Move, 0)
+	legalCaptures := make([]Move, 0)
 	for _, move := range moves {
 		if !b.IsInCheckAfterMove(move) {
 			legalMoves = append(legalMoves, move)
@@ -61,15 +34,15 @@ func (b *Board) PruneIllegal(moves, captures []string) ([]string, []string) {
 	return legalMoves, legalCaptures
 }
 
-func (b *Board) GetAvailableMoves(c Coord) (availableMoves, availableCaptures []string) {
+func (b *Board) GetAvailableMoves(c Coord) (availableMoves, availableCaptures []Move) {
 	return b.GetAvailableMovesRaw(c, false)
 }
 
-func (b *Board) GetAvailableMovesExcludeCastling(c Coord) (availableMoves, availableCaptures []string) {
+func (b *Board) GetAvailableMovesExcludeCastling(c Coord) (availableMoves, availableCaptures []Move) {
 	return b.GetAvailableMovesRaw(c, true)
 }
 
-func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMoves, availableCaptures []string) {
+func (b *Board) GetAvailableMovesRaw(c Coord, excludeCastling bool) (availableMoves, availableCaptures []Move) {
 	piece := b.AccessCoord(c)
 	plainPiece := piece % PieceOffset
 
@@ -234,7 +207,7 @@ func (b *Board) IsInCheck(color byte) bool {
 
 var pawnCaptures [2][2]int = [2][2]int{{1, 1}, {-1, 1}}
 
-func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetPawnMoves(c Coord) (moves, captures []Move) {
 	var targetCoord Coord
 	isWhite := b.Coords[c.File][c.Rank] <= PieceOffset
 	var isFirstMove bool
@@ -330,13 +303,13 @@ func (b *Board) GetPawnMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b *Board) addPawnPromotion(moves, captures []string) ([]string, []string) {
-	processMoves := func(moves []string) []string {
-		var m []string
+func (b *Board) addPawnPromotion(moves, captures []Move) ([]Move, []Move) {
+	processMoves := func(moves []Move) []Move {
+		var m []Move
 		for _, move := range moves {
-			_, to := longAlgToCoords(move)
+			_, to := move.ToCoords()
 			if to.Rank == 7 || to.Rank == 0 {
-				m = append(m, move+"q", move+"r", move+"n", move+"b")
+				m = append(m, move.SetPromotion('q'), move.SetPromotion('r'), move.SetPromotion('n'), move.SetPromotion('b'))
 			} else {
 				m = append(m, move)
 			}
@@ -347,7 +320,7 @@ func (b *Board) addPawnPromotion(moves, captures []string) ([]string, []string) 
 	return processMoves(moves), processMoves(captures)
 }
 
-func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetBishopMoves(c Coord) (moves, captures []Move) {
 	var ul, ur, dl, dr bool = true, true, true, true
 	var targetCoord Coord
 	for i := 1; i < 8; i++ {
@@ -411,7 +384,7 @@ func (b *Board) GetBishopMoves(c Coord) (moves, captures []string) {
 
 var knightMoves = [8][2]int{{2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {1, -2}, {-1, 2}, {-1, -2}}
 
-func (b *Board) GetKnightMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetKnightMoves(c Coord) (moves, captures []Move) {
 	var targetCoord Coord
 
 	for i := 0; i < 8; i++ {
@@ -432,7 +405,7 @@ func (b *Board) GetKnightMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b *Board) GetRookMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetRookMoves(c Coord) (moves, captures []Move) {
 	var u, d, l, r bool = true, true, true, true
 	var targetCoord Coord
 	for i := 1; i < 8; i++ {
@@ -494,7 +467,7 @@ func (b *Board) GetRookMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b *Board) GetQueenMoves(c Coord) (moves, captures []string) {
+func (b *Board) GetQueenMoves(c Coord) (moves, captures []Move) {
 	bishopMoves, bishopCaptures := b.GetBishopMoves(c)
 	rookMoves, rookCaptures := b.GetRookMoves(c)
 	moves = append(bishopMoves, rookMoves...)
@@ -502,7 +475,7 @@ func (b *Board) GetQueenMoves(c Coord) (moves, captures []string) {
 	return
 }
 
-func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []string) {
+func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []Move) {
 	var kingMoves = [8][2]int{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}}
 	var targetCoord Coord
 
@@ -536,14 +509,14 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 
 		if b.CastlingRights&WOOO != 0 && b.AccessCoord(c1) == 0 && b.AccessCoord(b1) == 0 && b.AccessCoord(d1) == 0 &&
 			b.Coords[1][1] != p && b.Coords[2][1] != p && b.Coords[4][1] != p &&
-			!strings.Contains(moveDest, "c1") && !strings.Contains(moveDest, "d1") && !strings.Contains(captureDest, "e1") {
-			moves = append(moves, "e1c1")
+			!containsSqaure(moveDest, SquareFromString("c1")) && !containsSqaure(moveDest, SquareFromString("d1")) && !containsSqaure(captureDest, SquareFromString("e1")) {
+			moves = append(moves, WCastleQueen)
 		}
 
 		if b.CastlingRights&WOO != 0 && b.AccessCoord(f1) == 0 && b.AccessCoord(g1) == 0 &&
 			b.Coords[6][1] != p && b.Coords[7][1] != p && b.Coords[4][1] != p &&
-			!strings.Contains(moveDest, "f1") && !strings.Contains(moveDest, "g1") && !strings.Contains(captureDest, "e1") {
-			moves = append(moves, "e1g1")
+			!containsSqaure(moveDest, SquareFromString("f1")) && !containsSqaure(moveDest, SquareFromString("g1")) && !containsSqaure(captureDest, SquareFromString("e1")) {
+			moves = append(moves, WCastleKing)
 		}
 	} else {
 		m, c := b.GetMovesNoCastling(WhiteToMove)
@@ -559,56 +532,66 @@ func (b *Board) GetKingMoves(c Coord, excludeCastling bool) (moves, captures []s
 
 		if b.CastlingRights&BOOO != 0 && b.AccessCoord(c8) == 0 && b.AccessCoord(b8) == 0 && b.AccessCoord(d8) == 0 &&
 			b.Coords[1][6] != P && b.Coords[2][6] != P && b.Coords[4][6] != P &&
-			!strings.Contains(moveDest, "c8") && !strings.Contains(moveDest, "d8") && !strings.Contains(captureDest, "e8") {
-			moves = append(moves, "e8c8")
+			!containsSqaure(moveDest, SquareFromString("c8")) && !containsSqaure(moveDest, SquareFromString("d8")) && !containsSqaure(captureDest, SquareFromString("e8")) {
+			moves = append(moves, BCastleQueen)
 		}
 
 		if b.CastlingRights&BOO != 0 && b.AccessCoord(f8) == 0 && b.AccessCoord(g8) == 0 &&
 			b.Coords[6][6] != P && b.Coords[7][6] != P && b.Coords[4][6] != P &&
-			!strings.Contains(moveDest, "f8") && !strings.Contains(moveDest, "g8") && !strings.Contains(captureDest, "e8") {
-			moves = append(moves, "e8g8")
+			!containsSqaure(moveDest, SquareFromString("f8")) && !containsSqaure(moveDest, SquareFromString("g8")) && !containsSqaure(captureDest, SquareFromString("e8")) {
+			moves = append(moves, BCastleKing)
 		}
 	}
 	return
 }
 
-func movesToDestinationSquaresString(moves []string) (destination string) {
+func containsSqaure(squares []Square, needle Square) bool {
+	for i := 0; i < len(squares); i++ {
+		if needle == squares[i] {
+			return true
+		}
+	}
+	return false
+}
+
+func movesToDestinationSquaresString(moves []Move) (destination []Square) {
 	for _, move := range moves {
-		destination += move[2:]
+		destination = append(destination, move.To())
 	}
 	return destination
 }
 
-func (b *Board) IsCastling(move string) bool {
+func (b *Board) IsCastling(move Move) bool {
 	if b.CastlingRights&CASTLING_ALL == 0 {
 		return false
 	}
-	from, _ := longAlgToCoords(move)
+	from, _ := move.ToCoords()
 	king := b.AccessCoord(from)
 	if king != K && king != k {
 		return false
 	}
 
-	if move == "e1c1" && b.CastlingRights&WOOO != 0 {
+	if move == WCastleQueen && b.CastlingRights&WOOO != 0 {
 		return true
 	}
 
-	if move == "e1g1" && b.CastlingRights&WOO != 0 {
+	if move == WCastleKing && b.CastlingRights&WOO != 0 {
 		return true
 	}
 
-	if move == "e8c8" && b.CastlingRights&BOOO != 0 {
+	if move == BCastleQueen && b.CastlingRights&BOOO != 0 {
 		return true
 	}
 
-	if move == "e8g8" && b.CastlingRights&BOO != 0 {
+	if move == BCastleKing && b.CastlingRights&BOO != 0 {
 		return true
 	}
 	return false
 }
 
-func (b *Board) isEnPassant(move string) bool {
-	from, to := move[:2], move[2:]
-	piece := b.AccessCoord(AlgToCoord(from))
+func (b *Board) isEnPassant(move Move) bool {
+	from, _ := move.ToCoords()
+	to := move.To().String()
+	piece := b.AccessCoord(from)
 	return (piece == 1 || piece == 7) && to == b.EnPassantTarget
 }

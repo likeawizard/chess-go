@@ -25,9 +25,8 @@ type Board struct {
 	FullMoveCounter uint8
 	IsEvaluated     bool
 	CachedEval      float32
-	EnPassantMoves  []string
 	TrackMoves      bool
-	Moves           []string
+	Moves           []Move
 }
 
 type Coord struct {

@@ -6,7 +6,6 @@ import (
 	"github.com/likeawizard/chess-go/internal/config"
 )
 
-var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
 var Files = [8]string{"a", "b", "c", "d", "e", "f", "g", "h"}
 
 func (b *Board) Init(c *config.Config) {
@@ -32,7 +31,6 @@ func (b *Board) Copy() *Board {
 		FullMoveCounter: b.HalfMoveCounter,
 		IsEvaluated:     b.IsEvaluated,
 		CachedEval:      b.CachedEval,
-		EnPassantMoves:  b.EnPassantMoves,
 		TrackMoves:      b.TrackMoves,
 		Moves:           b.Moves,
 	}
@@ -51,20 +49,34 @@ func (b *Board) SimpleCopy() *Board {
 	}
 }
 
-func (b *Board) MoveLongAlg(longalg string) {
-	from, to := longAlgToCoords(longalg)
+func (b *Board) MoveLongAlg(move Move) {
+	from, to := move.ToCoords()
 	if b.TrackMoves {
-		b.TrackMove(longalg)
+		b.TrackMove(move)
 	}
 	switch {
-	case b.IsCastling(longalg):
-		b.castle(longalg)
-	case b.isEnPassant(longalg):
+	case b.IsCastling(move):
+		b.castle(move)
+	case b.isEnPassant(move):
 		b.Coords[to.File][to.Rank] = b.Coords[from.File][from.Rank]
 		b.Coords[from.File][from.Rank] = empty
 		b.Coords[to.File][from.Rank] = empty
-	case len(longalg) == 5:
-		promoteTo := b.promote(longalg[4:])
+	case move.Promotion() != 0:
+		promoteTo := move.Promotion()
+		offset := uint8(0)
+		if b.SideToMove != WhiteToMove {
+			offset = 6
+		}
+		switch promoteTo {
+		case 'q':
+			promoteTo = Q + offset
+		case 'n':
+			promoteTo = N + offset
+		case 'r':
+			promoteTo = R + offset
+		case 'b':
+			promoteTo = B + offset
+		}
 		b.ZobristPromotion(from, to, promoteTo)
 		b.Coords[to.File][to.Rank] = promoteTo
 		b.Coords[from.File][from.Rank] = empty
@@ -97,24 +109,24 @@ func (b *Board) promote(piece string) uint8 {
 	}
 }
 
-func (b *Board) castle(move string) {
+func (b *Board) castle(move Move) {
 	switch move {
-	case "e1g1":
+	case WCastleKing:
 		b.Coords[4][0] = empty
 		b.Coords[6][0] = K
 		b.Coords[7][0] = empty
 		b.Coords[5][0] = R
-	case "e1c1":
+	case WCastleQueen:
 		b.Coords[4][0] = empty
 		b.Coords[2][0] = K
 		b.Coords[0][0] = empty
 		b.Coords[3][0] = R
-	case "e8g8":
+	case BCastleKing:
 		b.Coords[4][7] = empty
 		b.Coords[6][7] = k
 		b.Coords[7][7] = empty
 		b.Coords[5][7] = r
-	case "e8c8":
+	case BCastleQueen:
 		b.Coords[4][7] = empty
 		b.Coords[2][7] = k
 		b.Coords[0][7] = empty
@@ -160,25 +172,21 @@ func AlgToCoord(alg string) (c Coord) {
 	return c
 }
 
-func CoordsToMove(from, to Coord) string {
-	return CoordToAlg(from) + CoordToAlg(to)
-}
-
 func (b *Board) SetTrackMoves(trackmoves bool) {
 	b.TrackMoves = trackmoves
 }
 
-func (b *Board) TrackMove(move string) {
+func (b *Board) TrackMove(move Move) {
 	b.Moves = append(b.Moves, move)
 }
 
-func (b *Board) GetMoveList() []string {
+func (b *Board) GetMoveList() []Move {
 	return b.Moves
 }
 
-func (b *Board) GetLastMove() string {
+func (b *Board) GetLastMove() Move {
 	if len(b.Moves) == 0 {
-		return ""
+		return Move(0)
 	}
 	return b.Moves[len(b.Moves)-1]
 }
@@ -186,6 +194,6 @@ func (b *Board) GetLastMove() string {
 func (b *Board) PlayMoves(moves string) {
 	moveSlice := strings.Fields(moves)
 	for _, move := range moveSlice {
-		b.MoveLongAlg(move)
+		b.MoveLongAlg(MoveFromString(move))
 	}
 }

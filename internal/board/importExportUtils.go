@@ -136,13 +136,14 @@ func (b *Board) GeneratePGN() string {
 		if n%2 == 0 {
 			pgn += fmt.Sprintf("%d. ", bb.FullMoveCounter)
 		}
-		pgn += bb.MoveToPretty(move) + " "
+		pgn += bb.MoveToPretty(move.String()) + " "
 		bb.MoveLongAlg(move)
 	}
 	return pgn
 }
 
 func (b *Board) MoveToPretty(move string) (pretty string) {
+	var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
 	from, to := longAlgToCoords(move)
 	targetPiece := b.AccessCoord(to)
 	piece := b.AccessCoord(from)
@@ -170,12 +171,12 @@ func (b *Board) MoveToPretty(move string) (pretty string) {
 	return
 }
 
-func (b *Board) Disambiguate(move string, moves []string) string {
+func (b *Board) Disambiguate(move string, moves []Move) string {
 	dis := ""
 	from, to := longAlgToCoords(move)
 	for _, m := range moves {
-		f, t := longAlgToCoords(m)
-		if m[:2] == move[:2] || b.AccessCoord(from) != b.AccessCoord(f) {
+		f, t := m.ToCoords()
+		if m.String()[:2] == move[:2] || b.AccessCoord(from) != b.AccessCoord(f) {
 			continue
 		}
 		if f.File == from.File && to.Equal(&t) {

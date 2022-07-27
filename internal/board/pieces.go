@@ -55,20 +55,20 @@ func GetPiece(b *Board, coord Coord) (piece uint8, color byte) {
 	return
 }
 
-func (b *Board) GetLegalMoves(color byte) ([]string, []string) {
+func (b *Board) GetLegalMoves(color byte) ([]Move, []Move) {
 	m, c := b.GetMoves(color)
 	return b.PruneIllegal(m, c)
 }
 
-func (b *Board) GetMoves(color byte) (moves, captures []string) {
+func (b *Board) GetMoves(color byte) (moves, captures []Move) {
 	return b.getMoves(color, false)
 }
 
-func (b *Board) GetMovesNoCastling(color byte) (moves, captures []string) {
+func (b *Board) GetMovesNoCastling(color byte) (moves, captures []Move) {
 	return b.getMoves(color, true)
 }
 
-func (b *Board) getMoves(color byte, excludeCastling bool) (moves, captures []string) {
+func (b *Board) getMoves(color byte, excludeCastling bool) (moves, captures []Move) {
 	pieces := b.GetPieces(color)
 	for _, piece := range pieces {
 		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)
@@ -78,7 +78,7 @@ func (b *Board) getMoves(color byte, excludeCastling bool) (moves, captures []st
 	return
 }
 
-func (b *Board) playOutLine(line []string) {
+func (b *Board) playOutLine(line []Move) {
 	for _, move := range line {
 		b.MoveLongAlg(move)
 	}

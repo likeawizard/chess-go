@@ -274,7 +274,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				defer cancel()
 				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
 				timeManagment.StartStopWatch()
-				lc.MakeMove(game.GameID, best.MoveToPlay)
+				lc.MakeMove(game.GameID, best.MoveToPlay.String())
 			} else {
 				timeManagment.MeasureLag()
 				ctx, cancel = timeManagment.GetPonderContext()
@@ -304,7 +304,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				}
 				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
 				timeManagment.StartStopWatch()
-				lc.MakeMove(game.GameID, best.MoveToPlay)
+				lc.MakeMove(game.GameID, best.MoveToPlay.String())
 			} else {
 				timeManagment.MeasureLag()
 				ctx, cancel = timeManagment.GetPonderContext()

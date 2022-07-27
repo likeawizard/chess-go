@@ -18,6 +18,7 @@ var containsError bool
 func main() {
 	depth := 4
 	start := time.Now()
+	// board.PerftDebug("r3k2r/p2pqpb1/bnP1pnp1/4N3/1pB1P3/2N2Q1p/PPPB1PPP/R3K2R b KQkq - 0 2", depth)
 	perft1(depth)
 	perft2(depth)
 	perft3(depth)
@@ -25,10 +26,11 @@ func main() {
 	perft5(depth)
 	perft6(depth)
 
+	fmt.Printf("\nRun time: %v\n", time.Since(start))
 	if !containsError {
-		fmt.Printf("\nAll tests passed successfully. Total time: %v\n", time.Since(start))
+		fmt.Println("All tests passed successfully.")
 	} else {
-		fmt.Println("\nEncountered errors")
+		fmt.Println("Encountered errors")
 	}
 }
 

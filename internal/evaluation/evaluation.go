@@ -23,7 +23,7 @@ const (
 
 type Node struct {
 	Position   *board.Board
-	MoveToPlay string
+	MoveToPlay board.Move
 	Evaluation float32
 	Parent     *Node
 	Children   []*Node
@@ -150,7 +150,7 @@ func (n *Node) PickBestMoves(num int) []*Node {
 
 func (n *Node) ConstructLine() []string {
 	line := make([]string, 0)
-	line = append(line, n.MoveToPlay)
+	line = append(line, n.MoveToPlay.String())
 	side := n.Position.SideToMove
 	current := n
 	for current.Children != nil {
@@ -158,7 +158,7 @@ func (n *Node) ConstructLine() []string {
 		if best == nil {
 			break
 		}
-		line = append(line, best.MoveToPlay)
+		line = append(line, best.MoveToPlay.String())
 		switch side {
 		case board.WhiteToMove:
 			side = board.BlackToMove
@@ -178,7 +178,7 @@ func (e *EvalEngine) PlayMove(move *Node) {
 
 func (e *EvalEngine) ResetRootWithMove(move string) error {
 	for _, child := range e.RootNode.Children {
-		if child.MoveToPlay == move {
+		if child.MoveToPlay.String() == move {
 			e.RootNode = child
 			return nil
 		}
