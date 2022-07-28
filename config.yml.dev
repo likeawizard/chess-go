@@ -9,6 +9,7 @@ engine:
 
 lichess:
   apiToken: ""
+  ponder: false
 
 render:
   mode: "simple"

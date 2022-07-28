@@ -17,6 +17,22 @@ type TimeManagment struct {
 	isWhite      bool
 }
 
+func max(a, b int) int {
+	if a > b {
+		return a
+	} else {
+		return b
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
+
 func (tm *TimeManagment) UpdateClock(state GameState) {
 	tm.Move = len(strings.Fields(state.Moves)) / 2
 	if tm.isWhite {
@@ -27,14 +43,6 @@ func (tm *TimeManagment) UpdateClock(state GameState) {
 }
 
 func (tm *TimeManagment) AllotTime() int {
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		} else {
-			return b
-		}
-	}
-
 	if tm.Speed == "correspondence" {
 		return 60 * 1000
 	}
@@ -91,5 +99,6 @@ func (tm *TimeManagment) StartStopWatch() {
 }
 
 func (tm *TimeManagment) MeasureLag() {
-	tm.Lag = int(time.Since(tm.LagStopWatch).Milliseconds())
+	// Limit lag to 500 in case of unexpected lag spike
+	tm.Lag = min(int(time.Since(tm.LagStopWatch).Milliseconds()), 500)
 }
