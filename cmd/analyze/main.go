@@ -4,9 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -37,7 +34,6 @@ func main() {
 
 	r := render.New(cfg)
 	r.InitRender(b, e)
-	RegisterIterrupt(b)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
 	best := e.GetMove(ctx)
@@ -49,16 +45,5 @@ func main() {
 	b.MoveLongAlg(best.MoveToPlay)
 	e.PlayMove(best)
 	fmt.Println(best.MoveToPlay)
-	r.Update()
-}
-
-func RegisterIterrupt(b *board.Board) {
-	c := make(chan os.Signal)
-
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		fmt.Println(b.GetMoveList())
-		os.Exit(0)
-	}()
+	r.Update(best.MoveToPlay)
 }

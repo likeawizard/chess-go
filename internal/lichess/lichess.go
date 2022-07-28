@@ -253,7 +253,6 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			} else {
 				b.ImportFEN(gs.InitialFen)
 			}
-			b.TrackMoves = true
 			b.PlayMoves(gs.State.Moves)
 			e, err = eval.NewEvalEngine(b, lc.Config)
 			if err != nil {

@@ -23,10 +23,6 @@ type Board struct {
 	EnPassantTarget Square
 	HalfMoveCounter uint8
 	FullMoveCounter uint8
-	IsEvaluated     bool
-	CachedEval      float32
-	TrackMoves      bool
-	Moves           []Move
 }
 
 const (

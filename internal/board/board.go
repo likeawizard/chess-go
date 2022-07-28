@@ -29,31 +29,11 @@ func (b *Board) Copy() *Board {
 		EnPassantTarget: b.EnPassantTarget,
 		HalfMoveCounter: b.HalfMoveCounter,
 		FullMoveCounter: b.HalfMoveCounter,
-		IsEvaluated:     b.IsEvaluated,
-		CachedEval:      b.CachedEval,
-		TrackMoves:      b.TrackMoves,
-		Moves:           b.Moves,
-	}
-}
-
-// Only copy fields necessary for gametree construction
-func (b *Board) SimpleCopy() *Board {
-	return &Board{
-		Hash:            b.Hash,
-		Coords:          b.Coords,
-		SideToMove:      b.SideToMove,
-		CastlingRights:  b.CastlingRights,
-		EnPassantTarget: b.EnPassantTarget,
-		HalfMoveCounter: b.HalfMoveCounter,
-		FullMoveCounter: b.HalfMoveCounter,
 	}
 }
 
 func (b *Board) MoveLongAlg(move Move) {
 	from, to := move.FromTo()
-	if b.TrackMoves {
-		b.TrackMove(move)
-	}
 	switch {
 	case b.IsCastling(move):
 		b.castle(move)
@@ -146,25 +126,6 @@ func fileToCoord(file rune) int {
 		}
 	}
 	return 0
-}
-
-func (b *Board) SetTrackMoves(trackmoves bool) {
-	b.TrackMoves = trackmoves
-}
-
-func (b *Board) TrackMove(move Move) {
-	b.Moves = append(b.Moves, move)
-}
-
-func (b *Board) GetMoveList() []Move {
-	return b.Moves
-}
-
-func (b *Board) GetLastMove() Move {
-	if len(b.Moves) == 0 {
-		return Move(0)
-	}
-	return b.Moves[len(b.Moves)-1]
 }
 
 func (b *Board) PlayMoves(moves string) {

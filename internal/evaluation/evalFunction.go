@@ -183,7 +183,6 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 		eval += pieceEval
 	}
 
-	b.IsEvaluated, b.CachedEval = true, eval
 	e.Evaluations++
 	return eval
 }

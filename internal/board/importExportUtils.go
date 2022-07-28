@@ -139,13 +139,12 @@ func parsePosition(position string) ([64]uint8, error) {
 	return c, nil
 }
 
-func (b *Board) WritePGNToFile(path string) {
-	os.WriteFile(path, []byte(b.GeneratePGN()), 0644)
+func (b *Board) WritePGNToFile(data string, path string) {
+	os.WriteFile(path, []byte(data), 0644)
 }
 
-func (b *Board) GeneratePGN() string {
+func (b *Board) GeneratePGN(moves []Move) string {
 	pgn := ""
-	moves := b.GetMoveList()
 	bb := &Board{}
 	bb.InitDefault()
 	for n, move := range moves {
