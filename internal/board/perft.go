@@ -52,9 +52,9 @@ func (n *Node) GetChildNodes() []*Node {
 			Parent:     n,
 			Children:   nil,
 			Position:   &Board{},
-			MoveToPlay: all[i],
+			MoveToPlay: all[i].String(),
 		}
-		childNodes[i].Position = n.Position.SimpleCopy()
+		childNodes[i].Position = n.Position.Copy()
 		childNodes[i].Position.MoveLongAlg(all[i])
 	}
 

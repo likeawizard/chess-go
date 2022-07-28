@@ -7,14 +7,13 @@ import (
 func init() {
 	seed = rand.Uint64()
 	castlingKeys = make(map[CastlingRights]uint64)
-	enPassantKeys = make(map[string]uint64)
-	for i := 0; i <= 12; i++ {
-		for f := 0; f < 8; f++ {
-			for r := 0; r < 8; r++ {
-				pieceKeys[i][f][r] = rand.Uint64()
-			}
+	for sq := 0; sq < 64; sq++ {
+		for i := 0; i <= 12; i++ {
+			pieceKeys[i][sq] = rand.Uint64()
 		}
+		enPassantKeys[sq] = rand.Uint64()
 	}
+
 	castlingKeys[WOO] = rand.Uint64()
 	castlingKeys[WOOO] = rand.Uint64()
 	castlingKeys[BOO] = rand.Uint64()
@@ -24,49 +23,43 @@ func init() {
 }
 
 var seed uint64
-var pieceKeys [14][8][8]uint64
+var pieceKeys [14][64]uint64
 var castlingKeys map[CastlingRights]uint64
 var swapSide uint64
-var enPassantKeys map[string]uint64
+var enPassantKeys [64]uint64
 
 func (b *Board) SeedHash() uint64 {
 	hash := seed
 
 	var p int
-	for f := 0; f < 8; f++ {
-		for r := 0; r < 8; r++ {
-			p = int(b.Coords[f][r])
-			hash ^= pieceKeys[p][f][r]
-		}
+	for sq := 0; sq < 64; sq++ {
+		p = int(b.Coords[sq])
+		hash ^= pieceKeys[p][sq]
+
 	}
 
 	for _, cr := range castlingKeys {
 		hash ^= cr
 	}
 
-	var c Coord
-	var square string
-	for f := 0; f < 8; f++ {
-		for r := 0; r < 8; r++ {
-			c.File, c.Rank = f, r
-			square = CoordToAlg(c)
-			enPassantKeys[square] = rand.Uint64()
-		}
+	if b.EnPassantTarget != -1 {
+		hash ^= enPassantKeys[b.EnPassantTarget]
 	}
 
 	return hash
 }
 
-func (b *Board) ZobristSimpleMove(from, to Coord) {
-	start := b.AccessCoord(from)
-	finish := b.AccessCoord(to)
+func (b *Board) ZobristSimpleMove(move Move) {
+	from, to := move.From(), move.To()
+	start := b.Coords[from]
+	finish := b.Coords[to]
 
 	// unset target piece at destination and set new
-	b.Hash ^= pieceKeys[finish][to.File][to.Rank]
-	b.Hash ^= pieceKeys[start][to.File][to.Rank]
+	b.Hash ^= pieceKeys[finish][to]
+	b.Hash ^= pieceKeys[start][to]
 	// unset moved piece and replace with empty
-	b.Hash ^= pieceKeys[start][from.File][from.Rank]
-	b.Hash ^= pieceKeys[0][from.File][from.Rank]
+	b.Hash ^= pieceKeys[start][from]
+	b.Hash ^= pieceKeys[0][from]
 }
 
 func (b *Board) ZobristSideToMove() {
@@ -80,49 +73,50 @@ func (b *Board) ZobristCastlingRights(right CastlingRights) {
 func (b *Board) ZobristCastling(right CastlingRights) {
 	switch right {
 	case WOO:
-		kfrom := Coord{File: 4, Rank: 0}
-		kto := Coord{File: 6, Rank: 0}
-		rfrom := Coord{File: 7, Rank: 0}
-		rto := Coord{File: 5, Rank: 0}
-		b.ZobristSimpleMove(kfrom, kto)
-		b.ZobristSimpleMove(rfrom, rto)
+		b.ZobristSimpleMove(WCastleKing)
+		b.ZobristSimpleMove(WCastleKingRook)
 	case WOOO:
-		kfrom := Coord{File: 4, Rank: 0}
-		kto := Coord{File: 2, Rank: 0}
-		rfrom := Coord{File: 0, Rank: 0}
-		rto := Coord{File: 3, Rank: 0}
-		b.ZobristSimpleMove(kfrom, kto)
-		b.ZobristSimpleMove(rfrom, rto)
+		b.ZobristSimpleMove(WCastleQueen)
+		b.ZobristSimpleMove(WCastleQueenRook)
 	case BOO:
-		kfrom := Coord{File: 4, Rank: 7}
-		kto := Coord{File: 6, Rank: 7}
-		rfrom := Coord{File: 7, Rank: 7}
-		rto := Coord{File: 5, Rank: 7}
-		b.ZobristSimpleMove(kfrom, kto)
-		b.ZobristSimpleMove(rfrom, rto)
+		b.ZobristSimpleMove(BCastleKing)
+		b.ZobristSimpleMove(BCastleKingRook)
 	case BOOO:
-		kfrom := Coord{File: 4, Rank: 7}
-		kto := Coord{File: 2, Rank: 7}
-		rfrom := Coord{File: 0, Rank: 7}
-		rto := Coord{File: 3, Rank: 7}
-		b.ZobristSimpleMove(kfrom, kto)
-		b.ZobristSimpleMove(rfrom, rto)
+		b.ZobristSimpleMove(BCastleQueen)
+		b.ZobristSimpleMove(BCastleQueenRook)
 	}
 }
 
-func (b *Board) ZobristPromotion(from, to Coord, promoteTo uint8) {
-	promotion := int(promoteTo)
-	start := b.AccessCoord(from)
-	finish := b.AccessCoord(to)
+func (b *Board) ZobristPromotion(move Move) {
+	offset := uint8(6)
+	if b.SideToMove == WhiteToMove {
+		offset = 0
+	}
+	promotion := move.Promotion()
+	switch promotion {
+	case 'q':
+		promotion = Q + offset
+	case 'n':
+		promotion = N + offset
+	case 'r':
+		promotion = R + offset
+	case 'b':
+		promotion = B + offset
+	}
+	from, to := move.From(), move.To()
+	start := b.Coords[from]
+	finish := b.Coords[to]
 
-	b.Hash ^= pieceKeys[finish][to.File][to.Rank]
+	b.Hash ^= pieceKeys[finish][to]
 	// set destination with newly promoted piece
-	b.Hash ^= pieceKeys[promotion][to.File][to.Rank]
-	b.Hash ^= pieceKeys[finish][from.File][from.Rank]
-	b.Hash ^= pieceKeys[start][from.File][from.Rank]
+	b.Hash ^= pieceKeys[promotion][to]
+	b.Hash ^= pieceKeys[finish][from]
+	b.Hash ^= pieceKeys[start][from]
 
 }
 
-func (b *Board) ZobristEnPassant(square string) {
-	b.Hash ^= enPassantKeys[square]
+func (b *Board) ZobristEnPassant(square Square) {
+	if b.EnPassantTarget != -1 {
+		b.Hash ^= enPassantKeys[square]
+	}
 }

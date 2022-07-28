@@ -27,7 +27,7 @@ const (
 	knightInnerRim float32 = -0.05
 )
 
-func getPieceSpecificScore(piece uint8, c board.Coord, color byte) float32 {
+func getPieceSpecificScore(piece uint8, c board.Square, color byte) float32 {
 	switch piece {
 	case board.P, board.P + 6:
 		return getPawnScore(c, color)
@@ -40,21 +40,21 @@ func getPieceSpecificScore(piece uint8, c board.Coord, color byte) float32 {
 	}
 }
 
-func getPawnScore(c board.Coord, color byte) float32 {
+func getPawnScore(c board.Square, color byte) float32 {
 	//add structure modifiers - doubled, passed, protected
 	return getPawnAdvancementScore(c, color) + getCentralPawn(c)
 }
 
-func getPawnAdvancement(c board.Coord, color byte) int {
+func getPawnAdvancement(c board.Square, color byte) board.Square {
 	switch color {
 	case board.BlackToMove:
-		return 6 - c.Rank
+		return 6 - c/8
 	default:
-		return c.Rank - 1
+		return c/8 - 1
 	}
 }
 
-func getPawnAdvancementScore(c board.Coord, color byte) float32 {
+func getPawnAdvancementScore(c board.Square, color byte) float32 {
 	var score float32 = 0
 	switch getPawnAdvancement(c, color) {
 	case 6:
@@ -70,63 +70,59 @@ func getPawnAdvancementScore(c board.Coord, color byte) float32 {
 	return score
 }
 
-func getCentralPawn(c board.Coord) float32 {
-	if c.Rank > 3 && c.Rank < 5 && c.File > 3 && c.File < 5 {
+func getCentralPawn(c board.Square) float32 {
+	switch c {
+	case 27, 28, 35, 36:
 		return 0.2
+	default:
+		return 0
 	}
-	return 0
 }
 
-func getKnightPositionScore(c board.Coord) float32 {
-	if c.Rank == 0 || c.Rank == 7 || c.File == 0 || c.File == 7 {
+func getKnightPositionScore(c board.Square) float32 {
+	switch c {
+	case 27, 28, 35, 36:
+		return knightCenter22
+	case 42, 43, 44, 45, 34, 37, 26, 29, 18, 19, 20, 21:
+		return knightCenter44
+	case 49, 50, 51, 52, 53, 54, 9, 10, 11, 12, 13, 14, 41, 33, 25, 17, 46, 38, 30, 22:
+		return knightInnerRim
+	default:
 		return knightOuterRim
 	}
 
-	if c.Rank == 1 || c.Rank == 6 || c.File == 1 || c.File == 6 {
-		return knightInnerRim
-	}
-
-	if c.Rank > 3 && c.Rank < 5 && c.File > 3 && c.File < 5 {
-		return knightCenter22
-	}
-
-	if c.Rank > 2 && c.Rank < 6 && c.File > 2 && c.File < 6 {
-		return knightCenter44
-	}
-
-	return 0
 }
 
-func getMajorDiagScoreUR(c board.Coord) float32 {
-	if c.File-c.Rank == 0 {
+func getMajorDiagScoreUR(c board.Square) float32 {
+	if c%9 == 0 {
 		return majorDiag
 	}
 	return 0
 }
 
-func getMajorDiagScoreDR(c board.Coord) float32 {
-	if c.Rank+c.File == 7 {
+func getMajorDiagScoreDR(c board.Square) float32 {
+	if c%7 == 0 {
 		return majorDiag
 	}
 	return 0
 }
 
-func getMinoDiagScoreUR(c board.Coord) float32 {
-	if c.Rank-c.File == 1 || c.File-c.Rank == 1 {
+func getMinoDiagScoreUR(c board.Square) float32 {
+	if c%9 == 1 || c%9 == 8 {
 		return minorDiag
 	}
 	return 0
 }
 
-func getMinorDiagScoreDR(c board.Coord) float32 {
-	if c.File+c.Rank == 6 || c.File+c.Rank == 8 {
+func getMinorDiagScoreDR(c board.Square) float32 {
+	if c%7 == 6 || c%7 == 1 {
 		return minorDiag
 	}
 
 	return 0
 }
 
-func getBishopDiagScore(c board.Coord) float32 {
+func getBishopDiagScore(c board.Square) float32 {
 	return getMajorDiagScoreDR(c) + getMajorDiagScoreUR(c) + getMinoDiagScoreUR(c) + getMinorDiagScoreDR(c)
 }
 
@@ -163,12 +159,12 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 	}
 	var eval, pieceEval float32 = 0, 0
 	for _, piece := range whitePieces {
-		pieceType := b.AccessCoord(piece)
-		baseWeight := pieceWeights[b.AccessCoord(piece)-1]
+		pieceType := b.Coords[piece]
+		baseWeight := pieceWeights[b.Coords[piece]-1]
 		moves, captures := b.GetAvailableMoves(piece)
 		pieceEval = baseWeight + float32(len(moves))*moveWeight + float32(len(captures))*captureWeight + getPieceSpecificScore(pieceType, piece, board.WhiteToMove)
 		if DEBUG {
-			fmt.Printf("Evaluation for piece %s is %f\n", board.CoordToAlg(piece), pieceEval)
+			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
 		}
 		eval += pieceEval
 	}
@@ -177,17 +173,16 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 		fmt.Println("Black pieces")
 	}
 	for _, piece := range blackPieces {
-		pieceType := b.AccessCoord(piece)
-		baseWeight := pieceWeights[b.AccessCoord(piece)-1]
+		pieceType := b.Coords[piece]
+		baseWeight := pieceWeights[b.Coords[piece]-1]
 		moves, captures := b.GetAvailableMoves(piece)
 		pieceEval = baseWeight - float32(len(moves))*moveWeight - float32(len(captures))*captureWeight - getPieceSpecificScore(pieceType, piece, board.BlackToMove)
 		if DEBUG {
-			fmt.Printf("Evaluation for piece %s is %f\n", board.CoordToAlg(piece), pieceEval)
+			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
 		}
 		eval += pieceEval
 	}
 
-	b.IsEvaluated, b.CachedEval = true, eval
 	e.Evaluations++
 	return eval
 }

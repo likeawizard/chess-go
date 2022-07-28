@@ -1,62 +1,57 @@
 package board
 
-import (
-	"math"
-)
-
-func (b *Board) updateCastlingRights(from, to Coord) {
+func (b *Board) updateCastlingRights(move Move) {
 	if b.CastlingRights == 0 {
 		return
 	}
-	squareFrom := CoordToAlg(from)
-	squareTo := CoordToAlg(to)
+	from, to := move.FromTo()
 
 	switch {
-	case b.CastlingRights&(WOOO|WOO) != 0 && squareFrom == "e1":
+	case b.CastlingRights&(WOOO|WOO) != 0 && from == WCastleQueen.From():
 		b.ZobristCastlingRights(WOOO)
 		b.ZobristCastlingRights(WOO)
 		b.CastlingRights = b.CastlingRights &^ WOOO
 		b.CastlingRights = b.CastlingRights &^ WOO
 
-	case b.CastlingRights&(BOOO|BOO) != 0 && squareFrom == "e8":
+	case b.CastlingRights&(BOOO|BOO) != 0 && from == BCastleQueen.From():
 		b.ZobristCastlingRights(BOOO)
 		b.ZobristCastlingRights(BOO)
 		b.CastlingRights = b.CastlingRights &^ BOOO
 		b.CastlingRights = b.CastlingRights &^ BOO
 
-	case b.CastlingRights&WOOO != 0 && (squareFrom == "a1" || squareTo == "a1"):
+	case b.CastlingRights&WOOO != 0 && (from == WCastleQueenRook.From() || to == WCastleQueenRook.From()):
 		b.ZobristCastlingRights(WOOO)
 		b.CastlingRights = b.CastlingRights &^ WOOO
 
-	case b.CastlingRights&WOO != 0 && (squareFrom == "h1" || squareTo == "h1"):
+	case b.CastlingRights&WOO != 0 && (from == WCastleKingRook.From() || to == WCastleKingRook.From()):
 		b.ZobristCastlingRights(WOO)
 		b.CastlingRights = b.CastlingRights &^ WOO
 
-	case b.CastlingRights&BOOO != 0 && (squareFrom == "a8" || squareTo == "a8"):
+	case b.CastlingRights&BOOO != 0 && (from == BCastleQueenRook.From() || to == BCastleQueenRook.From()):
 		b.ZobristCastlingRights(BOOO)
 		b.CastlingRights = b.CastlingRights &^ BOOO
 
-	case b.CastlingRights&BOO != 0 && (squareFrom == "h8" || squareTo == "h8"):
+	case b.CastlingRights&BOO != 0 && (from == BCastleKingRook.From() || to == BCastleKingRook.From()):
 		b.ZobristCastlingRights(BOO)
 		b.CastlingRights = b.CastlingRights &^ BOO
 	}
 }
 
-func (b *Board) updateEnPassantTarget(from, to Coord) {
-	piece, _ := GetPiece(b, to)
-
+func (b *Board) updateEnPassantTarget(move Move) {
+	from, to := move.FromTo()
+	piece := b.Coords[to]
 	isPawnMove := piece == P || piece == p
-	isDoubleMove := int(math.Abs(float64(from.Rank-to.Rank))) == 2
+	isDoubleMove := from-to == 16 || from-to == -16
 
-	if b.EnPassantTarget != "-" {
+	if b.EnPassantTarget != -1 {
 		b.ZobristEnPassant(b.EnPassantTarget)
 	}
 
 	if isDoubleMove && isPawnMove {
-		b.EnPassantTarget = CoordToAlg(Coord{from.File, (from.Rank + to.Rank) / 2})
+		b.EnPassantTarget = Square((from + to) / 2)
 		b.ZobristEnPassant(b.EnPassantTarget)
 	} else {
-		b.EnPassantTarget = "-"
+		b.EnPassantTarget = -1
 	}
 }
 

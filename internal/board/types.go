@@ -17,22 +17,12 @@ package board
 */
 type Board struct {
 	Hash            uint64
-	Coords          [8][8]uint8
+	Coords          [64]uint8
 	SideToMove      byte
 	CastlingRights  CastlingRights
-	EnPassantTarget string
+	EnPassantTarget Square
 	HalfMoveCounter uint8
 	FullMoveCounter uint8
-	IsEvaluated     bool
-	CachedEval      float32
-	EnPassantMoves  []string
-	TrackMoves      bool
-	Moves           []string
-}
-
-type Coord struct {
-	File int
-	Rank int
 }
 
 const (

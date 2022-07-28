@@ -3,9 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -34,15 +31,4 @@ func main() {
 	}
 
 	fmt.Println(eval.GetEvaluation(e, b))
-}
-
-func RegisterIterrupt(b *board.Board) {
-	c := make(chan os.Signal)
-
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		fmt.Println(b.GetMoveList())
-		os.Exit(0)
-	}()
 }

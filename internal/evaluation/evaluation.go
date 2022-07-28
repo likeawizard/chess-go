@@ -23,7 +23,7 @@ const (
 
 type Node struct {
 	Position   *board.Board
-	MoveToPlay string
+	MoveToPlay board.Move
 	Evaluation float32
 	Parent     *Node
 	Children   []*Node
@@ -39,6 +39,7 @@ type EvalEngine struct {
 	RootNode      *Node
 	DebugMode     bool
 	SearchDepth   int
+	TTable        map[uint64]float32
 	MaxGoroutines chan struct{}
 	Algorithm     string
 }
@@ -55,7 +56,7 @@ func (n *Node) GetChildNodes() []*Node {
 			Position:   &board.Board{},
 			MoveToPlay: all[i],
 		}
-		childNodes[i].Position = n.Position.SimpleCopy()
+		childNodes[i].Position = n.Position.Copy()
 		childNodes[i].Position.MoveLongAlg(all[i])
 	}
 
@@ -81,6 +82,7 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 		SearchDepth:   c.Engine.MaxDepth,
 		MaxGoroutines: make(chan struct{}, c.Engine.MaxGoRoutines),
 		Algorithm:     c.Engine.Algorithm,
+		TTable:        make(map[uint64]float32),
 	}, nil
 }
 
@@ -148,7 +150,7 @@ func (n *Node) PickBestMoves(num int) []*Node {
 
 func (n *Node) ConstructLine() []string {
 	line := make([]string, 0)
-	line = append(line, n.MoveToPlay)
+	line = append(line, n.MoveToPlay.String())
 	side := n.Position.SideToMove
 	current := n
 	for current.Children != nil {
@@ -156,7 +158,7 @@ func (n *Node) ConstructLine() []string {
 		if best == nil {
 			break
 		}
-		line = append(line, best.MoveToPlay)
+		line = append(line, best.MoveToPlay.String())
 		switch side {
 		case board.WhiteToMove:
 			side = board.BlackToMove
@@ -176,7 +178,7 @@ func (e *EvalEngine) PlayMove(move *Node) {
 
 func (e *EvalEngine) ResetRootWithMove(move string) error {
 	for _, child := range e.RootNode.Children {
-		if child.MoveToPlay == move {
+		if child.MoveToPlay.String() == move {
 			e.RootNode = child
 			return nil
 		}

@@ -15,7 +15,7 @@ const (
 
 type BoardRender interface {
 	InitRender(b *board.Board, e *eval.EvalEngine)
-	Update()
+	Update(move board.Move)
 	Run()
 }
 
@@ -75,22 +75,22 @@ func (render *SimpleAsciiRender) InitRender(b *board.Board, e *eval.EvalEngine) 
 	render.e = e
 }
 
-func (render *TviewBoardRender) Update() {
+func (render *TviewBoardRender) Update(move board.Move) {
 	render.boardView.SetText(ASCIIRender(*render.b))
 	render.currentFen.SetText(render.b.ExportFEN())
 	moveTime := render.e.MoveTime.Seconds()
 	evaluationsPerSecond := float64(eval.Evaluations+eval.CachedEvals) / moveTime
 	render.performance.SetText(fmt.Sprintf(performanceFormat, moveTime, evaluationsPerSecond))
-	render.moves.SetText(fmt.Sprintf("%v", render.b.GetMoveList()))
+	// render.moves.SetText(fmt.Sprintf("%v", render.b.GetMoveList()))
 
 	render.app.Draw()
 
 }
 
-func (render *SimpleAsciiRender) Update() {
+func (render *SimpleAsciiRender) Update(move board.Move) {
 	fmt.Println(render.b.ExportFEN())
 
-	fmt.Println(render.b.GetLastMove())
+	fmt.Println(move)
 	moveTime := render.e.MoveTime.Seconds()
 	evaluationsPerSecond := float64(render.e.Evaluations) / moveTime
 	fmt.Printf(performanceFormat+"\n", moveTime, evaluationsPerSecond)
@@ -105,13 +105,13 @@ func (render *SimpleAsciiRender) Run() {
 
 func ASCIIRender(b board.Board) string {
 	output := ""
-	for r := len(b.Coords) - 1; r >= 0; r-- {
+	for r := 7; r >= 0; r-- {
 		output += fmt.Sprintf("%d ", r+1)
-		for f := range b.Coords[r] {
-			if b.Coords[f][r] == 0 {
+		for f := 0; f < 8; f++ {
+			if b.Coords[f+r*8] == 0 {
 				output += "0"
 			} else {
-				output += fmt.Sprint(board.Pieces[(b.Coords[f][r] - 1)])
+				output += fmt.Sprint(board.Pieces[(b.Coords[f+r*8] - 1)])
 			}
 		}
 		output += fmt.Sprintln("")
