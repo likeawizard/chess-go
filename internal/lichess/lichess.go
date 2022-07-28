@@ -29,6 +29,7 @@ type LichessConnector struct {
 	token         string
 	Config        *config.Config
 	FinishedGames sync.Map
+	Ponder        bool
 }
 
 func (lc *LichessConnector) request(path, method string, payload io.Reader) ([]byte, error) {
@@ -58,6 +59,7 @@ func NewLichessConnector(c *config.Config) *LichessConnector {
 		Client: &http.Client{},
 		token:  c.Lichess.APIToken,
 		Config: c,
+		Ponder: c.Lichess.Ponder,
 	}
 }
 
@@ -276,9 +278,11 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				lc.MakeMove(game.GameID, best.MoveToPlay.String())
 			} else {
 				timeManagment.MeasureLag()
-				ctx, cancel = timeManagment.GetPonderContext()
-				defer cancel()
-				go e.GetMove(ctx)
+				if lc.Ponder {
+					ctx, cancel = timeManagment.GetPonderContext()
+					defer cancel()
+					go e.GetMove(ctx)
+				}
 			}
 		case GAME_EVENT_STATE:
 			fmt.Printf("New move in: %s\n", game.GameID)
@@ -306,10 +310,12 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				lc.MakeMove(game.GameID, best.MoveToPlay.String())
 			} else {
 				timeManagment.MeasureLag()
-				ctx, cancel = timeManagment.GetPonderContext()
-				defer cancel()
-				fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
-				go e.GetMove(ctx)
+				if lc.Ponder {
+					ctx, cancel = timeManagment.GetPonderContext()
+					defer cancel()
+					fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+					go e.GetMove(ctx)
+				}
 			}
 
 		default:

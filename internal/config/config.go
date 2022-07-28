@@ -32,6 +32,7 @@ type Render struct {
 
 type Lichess struct {
 	APIToken string `yaml:"apiToken"`
+	Ponder   bool   `yaml:"ponder"`
 }
 
 func LoadConfig() (*Config, error) {
