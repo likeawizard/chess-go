@@ -183,6 +183,9 @@ func (b *Board) MoveToPretty(move string) (pretty string) {
 		}
 		pretty += move[2:]
 	}
+	if len(move) == 5 {
+		pretty += "=" + strings.ToUpper(move[4:])
+	}
 
 	return
 }

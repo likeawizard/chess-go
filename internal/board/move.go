@@ -69,15 +69,19 @@ func (m Move) Promotion() uint8 {
 }
 
 func (m Move) SetPromotion(prom uint8) Move {
-	m &= (63<<6 + 63)
-	m += (Move(prom) << 12)
+	m &= 4095
+	m += Move(prom) << 12
 	return m
 }
 
 func (m Move) FromTo() (Square, Square) {
-	return m.From(), m.To()
+	return Square(m>>6) & 63, Square(m) & 63
 }
 
 func (m Move) String() string {
-	return fmt.Sprintf("%v%v%c", Square(m.From()), Square(m.To()), m.Promotion())
+	if m.Promotion() != 0 {
+		return fmt.Sprintf("%v%v%c", Square(m.From()), Square(m.To()), m.Promotion())
+	} else {
+		return fmt.Sprintf("%v%v", Square(m.From()), Square(m.To()))
+	}
 }
