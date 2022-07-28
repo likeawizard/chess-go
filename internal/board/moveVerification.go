@@ -75,9 +75,9 @@ func (b *Board) isOpponentPiece(us, them Square) bool {
 }
 
 func (b *Board) IsInCheckAfterMove(move Move) bool {
-	bb := b.Copy()
-	bb.MoveLongAlg(move)
-	return bb.IsInCheck(b.IsWhite)
+	umake := b.MoveLongAlg(move)
+	defer umake()
+	return b.IsInCheck(!b.IsWhite)
 }
 
 func (b *Board) PruneIllegal(moves, captures []Move) ([]Move, []Move) {
@@ -138,11 +138,11 @@ func (b *Board) IsInCheck(isWhite bool) bool {
 	}
 
 	target = king + 1 + pawnDirection
-	if CoordInBounds(target) && b.Coords[target] == P+offset {
+	if king%8 != 7 && CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
 	target = king - 1 + pawnDirection
-	if CoordInBounds(target) && b.Coords[target] == P+offset {
+	if king%8 != 0 && CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
 

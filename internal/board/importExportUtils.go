@@ -46,9 +46,8 @@ func (b *Board) ExportFEN() string {
 		if b.CastlingRights&BOOO != 0 {
 			castlingRights += "q"
 		}
-		if castlingRights == "" {
-			castlingRights = "-"
-		}
+	} else {
+		castlingRights = "-"
 	}
 
 	epString := "-"
