@@ -4,8 +4,6 @@ import (
 	"context"
 	"sort"
 	"sync"
-
-	"github.com/likeawizard/chess-go/internal/board"
 )
 
 func (e *EvalEngine) alphabetaSerial(n *Node, depth int, alpha, beta float32, isWhite bool) float32 {
@@ -149,7 +147,7 @@ func (e *EvalEngine) alphaBetaWithOrdering(ctx context.Context, n *Node, depth i
 				wg.Done()
 				return
 			default:
-				best = n.PickBestMove(n.Position.SideToMove)
+				best = n.PickBestMove(n.Position.IsWhite)
 				nodes := e.orderTree(n, 2)
 				_ = nodes
 				// bFactor := math.Pow(float64(nodes), 1.0/float64(d))
@@ -172,7 +170,7 @@ func (e *EvalEngine) orderTree(n *Node, depth int) int {
 	}
 	nodes := len(n.Children)
 	sort.Slice(n.Children, func(i, j int) bool {
-		if n.Position.SideToMove == board.WhiteToMove {
+		if n.Position.IsWhite {
 			return n.Children[i].Evaluation > n.Children[j].Evaluation
 		} else {
 			return n.Children[i].Evaluation < n.Children[j].Evaluation

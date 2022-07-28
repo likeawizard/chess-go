@@ -126,22 +126,14 @@ func getBishopDiagScore(c board.Square) float32 {
 	return getMajorDiagScoreDR(c) + getMajorDiagScoreUR(c) + getMinoDiagScoreUR(c) + getMinorDiagScoreDR(c)
 }
 
-func SideDependantEval(e *EvalEngine, b *board.Board) float32 {
-	if e.RootNode.Position.SideToMove == board.WhiteToMove {
-		return GetEvaluation(e, b)
-	} else {
-		return GetEvaluation(e, b)
-	}
-}
-
 func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
-	inCheck := b.IsInCheck(b.SideToMove)
-	m, c := b.GetLegalMoves(b.SideToMove)
+	inCheck := b.IsInCheck(b.IsWhite)
+	m, c := b.GetLegalMoves(b.IsWhite)
 	all := append(m, c...)
 
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
-		if b.SideToMove == board.WhiteToMove {
+		if b.IsWhite {
 			return negInf
 		} else {
 			return posInf
@@ -151,8 +143,8 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 		return 0
 	}
 
-	whitePieces := b.GetPieces(board.WhiteToMove)
-	blackPieces := b.GetPieces(board.BlackToMove)
+	whitePieces := b.GetPieces(true)
+	blackPieces := b.GetPieces(false)
 	if DEBUG {
 		fmt.Printf("white pieces %d, black pieces %d\n", len(whitePieces), len(blackPieces))
 		fmt.Println("White pieces:")
@@ -185,17 +177,4 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 
 	e.Evaluations++
 	return eval
-}
-
-func kingDeadScore(b *board.Board) (float32, bool) {
-	whiteKingDead := !board.CoordInBounds(b.GetKing(board.WhiteToMove))
-	blackKingDead := !board.CoordInBounds(b.GetKing(board.BlackToMove))
-	switch {
-	case whiteKingDead:
-		return negInf, true
-	case blackKingDead:
-		return posInf, true
-	default:
-		return 0.0, false
-	}
 }

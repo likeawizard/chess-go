@@ -43,7 +43,7 @@ func (n *Node) BuildGameTree(depth int) {
 }
 
 func (n *Node) GetChildNodes() []*Node {
-	moves, captures := n.Position.GetLegalMoves(n.Position.SideToMove)
+	moves, captures := n.Position.GetLegalMoves(n.Position.IsWhite)
 	all := append(captures, moves...)
 	childNodes := make([]*Node, len(all))
 

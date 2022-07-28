@@ -264,7 +264,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			}
 			timeManagment = *NewTimeManagement(gs, isWhite)
 
-			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+			if isWhite == (e.RootNode.Position.IsWhite) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel := timeManagment.GetTimeoutContext()
@@ -296,7 +296,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				e.ResetRootWithMove(lastMove)
 			}
 
-			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
+			if isWhite == (e.RootNode.Position.IsWhite) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel = timeManagment.GetTimeoutContext()

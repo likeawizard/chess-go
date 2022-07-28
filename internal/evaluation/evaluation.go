@@ -45,7 +45,7 @@ type EvalEngine struct {
 }
 
 func (n *Node) GetChildNodes() []*Node {
-	moves, captures := n.Position.GetLegalMoves(n.Position.SideToMove)
+	moves, captures := n.Position.GetLegalMoves(n.Position.IsWhite)
 	all := append(captures, moves...)
 	childNodes := make([]*Node, len(all))
 
@@ -92,30 +92,30 @@ func (e *EvalEngine) GetMove(ctx context.Context) *Node {
 	start := time.Now()
 	switch e.Algorithm {
 	case EVAL_MINMAX:
-		e.minmaxSerial(e.RootNode, e.SearchDepth, e.RootNode.Position.SideToMove == board.WhiteToMove)
-		best = e.RootNode.PickBestMove(e.RootNode.Position.SideToMove)
+		e.minmaxSerial(e.RootNode, e.SearchDepth, e.RootNode.Position.IsWhite)
+		best = e.RootNode.PickBestMove(e.RootNode.Position.IsWhite)
 	case EVAL_ALPHABETA:
-		best = e.alphaBetaWithOrdering(ctx, e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.SideToMove == board.WhiteToMove)
+		best = e.alphaBetaWithOrdering(ctx, e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.IsWhite)
 	}
 	e.MoveTime = time.Since(start)
 
 	return best
 }
 
-func (n *Node) PickBestMove(side byte) *Node {
+func (n *Node) PickBestMove(isWhite bool) *Node {
 	if n.Children == nil || len(n.Children) == 0 {
 		return nil
 	}
 	var bestMove *Node = n.Children[0]
 	bestScore := negInf
-	switch side {
-	case board.WhiteToMove:
+	switch isWhite {
+	case true:
 		for _, c := range n.Children {
 			if c.Evaluation > bestScore {
 				bestScore, bestMove = c.Evaluation, c
 			}
 		}
-	case board.BlackToMove:
+	case false:
 		bestScore = posInf
 		for _, c := range n.Children {
 			if c.Evaluation < bestScore {
@@ -138,7 +138,7 @@ func (n *Node) PickBestMoves(num int) []*Node {
 	moves := n.Children
 	num = min(num, len(moves))
 	sort.Slice(moves, func(i, j int) bool {
-		if n.Position.SideToMove == board.WhiteToMove {
+		if n.Position.IsWhite {
 			return moves[i].Evaluation > moves[j].Evaluation
 		} else {
 			return moves[i].Evaluation < moves[j].Evaluation
@@ -151,20 +151,15 @@ func (n *Node) PickBestMoves(num int) []*Node {
 func (n *Node) ConstructLine() []string {
 	line := make([]string, 0)
 	line = append(line, n.MoveToPlay.String())
-	side := n.Position.SideToMove
+	isWhite := n.Position.IsWhite
 	current := n
 	for current.Children != nil {
-		best := current.PickBestMove(side)
+		best := current.PickBestMove(isWhite)
 		if best == nil {
 			break
 		}
 		line = append(line, best.MoveToPlay.String())
-		switch side {
-		case board.WhiteToMove:
-			side = board.BlackToMove
-		case board.BlackToMove:
-			side = board.WhiteToMove
-		}
+		isWhite = !isWhite
 		current = best
 	}
 

@@ -12,9 +12,9 @@ func PieceSymbolToInt(piece string) uint8 {
 	}
 	return 0
 }
-func (b *Board) GetKing(color byte) (c Square) {
+func (b *Board) GetKing(isWhite bool) (c Square) {
 	var king uint8 = 6
-	if color == BlackToMove {
+	if !isWhite {
 		king += PieceOffset
 	}
 
@@ -26,35 +26,35 @@ func (b *Board) GetKing(color byte) (c Square) {
 	return
 }
 
-func (b *Board) GetPieces(color byte) (pieces []Square) {
+func (b *Board) GetPieces(isWhite bool) (pieces []Square) {
 	for i := Square(0); i < 64; i++ {
 		piece := b.Coords[i]
 		if piece == 0 {
 			continue
 		}
 
-		if color == WhiteToMove && piece < 7 || color == BlackToMove && piece >= 7 {
+		if isWhite && piece < 7 || !isWhite && piece >= 7 {
 			pieces = append(pieces, Square(i))
 		}
 	}
 	return
 }
 
-func (b *Board) GetLegalMoves(color byte) ([]Move, []Move) {
-	m, c := b.GetMoves(color)
+func (b *Board) GetLegalMoves(isWhite bool) ([]Move, []Move) {
+	m, c := b.GetMoves(isWhite)
 	return b.PruneIllegal(m, c)
 }
 
-func (b *Board) GetMoves(color byte) (moves, captures []Move) {
-	return b.getMoves(color, false)
+func (b *Board) GetMoves(isWhite bool) (moves, captures []Move) {
+	return b.getMoves(isWhite, false)
 }
 
-func (b *Board) GetMovesNoCastling(color byte) (moves, captures []Move) {
-	return b.getMoves(color, true)
+func (b *Board) GetMovesNoCastling(isWhite bool) (moves, captures []Move) {
+	return b.getMoves(isWhite, true)
 }
 
-func (b *Board) getMoves(color byte, excludeCastling bool) (moves, captures []Move) {
-	pieces := b.GetPieces(color)
+func (b *Board) getMoves(isWhite bool, excludeCastling bool) (moves, captures []Move) {
+	pieces := b.GetPieces(isWhite)
 	for _, piece := range pieces {
 		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)
 		moves = append(moves, m...)

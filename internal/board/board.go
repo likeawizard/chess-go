@@ -24,7 +24,7 @@ func (b *Board) Copy() *Board {
 	return &Board{
 		Hash:            b.Hash,
 		Coords:          b.Coords,
-		SideToMove:      b.SideToMove,
+		IsWhite:         b.IsWhite,
 		CastlingRights:  b.CastlingRights,
 		EnPassantTarget: b.EnPassantTarget,
 		HalfMoveCounter: b.HalfMoveCounter,
@@ -41,14 +41,14 @@ func (b *Board) MoveLongAlg(move Move) {
 		b.Coords[to] = b.Coords[from]
 		b.Coords[from] = empty
 		direction := 8
-		if b.SideToMove == BlackToMove {
+		if !b.IsWhite {
 			direction = -8
 		}
 		b.Coords[to-Square(direction)] = empty
 	case move.Promotion() != 0:
 		promoteTo := move.Promotion()
 		offset := uint8(0)
-		if b.SideToMove != WhiteToMove {
+		if !b.IsWhite {
 			offset = 6
 		}
 		switch promoteTo {
@@ -82,7 +82,7 @@ func (b *Board) move(move Move) {
 
 func (b *Board) promote(piece string) uint8 {
 	off := uint8(0)
-	if b.SideToMove == BlackToMove {
+	if !b.IsWhite {
 		off = 6
 	}
 
