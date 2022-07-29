@@ -29,12 +29,9 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 			value = negInf
 			move = all[0]
 			for i := 0; i < len(all); i++ {
-				if all[i] == 0 {
-					panic(1)
-				}
 				umove := e.Board.MoveLongAlg(all[i])
 				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
-				if temp >= value {
+				if temp > value {
 					value = temp
 					move = all[i]
 					movesVar = tempMoves
@@ -54,7 +51,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 			for i := 0; i < len(all); i++ {
 				umove := e.Board.MoveLongAlg(all[i])
 				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
-				if temp <= value {
+				if temp < value {
 					value = temp
 					move = all[i]
 					movesVar = tempMoves
