@@ -1,5 +1,7 @@
 package board
 
+import "sort"
+
 const PieceOffset = 6
 
 var Pieces = [12]string{"P", "B", "N", "R", "Q", "K", "p", "b", "n", "r", "q", "k"}
@@ -40,8 +42,8 @@ func (b *Board) GetPieces(isWhite bool) (pieces []Square) {
 	return
 }
 
-func (b *Board) GetLegalMoves(isWhite bool) ([]Move, []Move) {
-	m, c := b.GetMoves(isWhite)
+func (b *Board) GetLegalMoves() ([]Move, []Move) {
+	m, c := b.GetMoves(b.IsWhite)
 	return b.PruneIllegal(m, c)
 }
 
@@ -62,3 +64,39 @@ func (b *Board) getMoves(isWhite bool, excludeCastling bool) (moves, captures []
 	}
 	return
 }
+
+func (b *Board) OrderMoves(pv Move, moves, captures []Move) []Move {
+	all := append(moves, captures...)
+
+	sort.Slice(all, func(i int, j int) bool {
+		return all[i] == pv
+	})
+
+	return all
+}
+
+// func (b *Board) OrderMoves(moves, captures []Move) []Move {
+// 	all := append(moves, captures...)
+
+// 	sort.Slice(all, func(i int, j int) bool {
+// 		return b.getMoveValue(all[i]) > b.getMoveValue(all[j])
+// 	})
+
+// 	return all
+// }
+
+// var PieceWeights = [13]float32{0, 1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
+
+// func (b *Board) getMoveValue(capture Move) float32 {
+// 	dir := float32(-1)
+// 	if !b.IsWhite {
+// 		dir *= -1
+// 	}
+// 	from, to := capture.FromTo()
+// 	us, them := PieceWeights[b.Coords[from]], PieceWeights[b.Coords[to]]
+// 	if them == 0 {
+// 		return 0
+// 	} else {
+// 		return dir * (0.5*us + them)
+// 	}
+// }

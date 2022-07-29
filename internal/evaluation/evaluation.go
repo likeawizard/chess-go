@@ -2,8 +2,6 @@ package eval
 
 import (
 	"context"
-	"fmt"
-	"sort"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -36,7 +34,7 @@ type EvalEngine struct {
 	CachedEvals   int64
 	EvalFunction  EvalFunction
 	MoveTime      time.Duration
-	RootNode      *Node
+	Board         *board.Board
 	DebugMode     bool
 	SearchDepth   int
 	TTable        map[uint64]float32
@@ -44,39 +42,9 @@ type EvalEngine struct {
 	Algorithm     string
 }
 
-func (n *Node) GetChildNodes() []*Node {
-	moves, captures := n.Position.GetLegalMoves(n.Position.IsWhite)
-	all := append(captures, moves...)
-	childNodes := make([]*Node, len(all))
-
-	for i := 0; i < len(all); i++ {
-		childNodes[i] = &Node{
-			Parent:     n,
-			Children:   nil,
-			Position:   &board.Board{},
-			MoveToPlay: all[i],
-		}
-		childNodes[i].Position = n.Position.Copy()
-		childNodes[i].Position.MoveLongAlg(all[i])
-	}
-
-	return childNodes
-}
-
-func NewRootNode(b *board.Board) *Node {
-	node := &Node{
-		Position: b,
-		Parent:   nil,
-	}
-
-	node.Children = node.GetChildNodes()
-
-	return node
-}
-
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	return &EvalEngine{
-		RootNode:      NewRootNode(b),
+		Board:         b,
 		EvalFunction:  GetEvaluation,
 		DebugMode:     c.Engine.Debug,
 		SearchDepth:   c.Engine.MaxDepth,
@@ -86,45 +54,13 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	}, nil
 }
 
-func (e *EvalEngine) GetMove(ctx context.Context) *Node {
-	var best *Node
+func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	e.Evaluations = 0
 	start := time.Now()
-	switch e.Algorithm {
-	case EVAL_MINMAX:
-		e.minmaxSerial(e.RootNode, e.SearchDepth, e.RootNode.Position.IsWhite)
-		best = e.RootNode.PickBestMove(e.RootNode.Position.IsWhite)
-	case EVAL_ALPHABETA:
-		best = e.alphaBetaWithOrdering(ctx, e.RootNode, e.SearchDepth, negInf, posInf, e.RootNode.Position.IsWhite)
-	}
+	best := e.IDSearch(ctx, e.SearchDepth, negInf, posInf)
 	e.MoveTime = time.Since(start)
 
 	return best
-}
-
-func (n *Node) PickBestMove(isWhite bool) *Node {
-	if n.Children == nil || len(n.Children) == 0 {
-		return nil
-	}
-	var bestMove *Node = n.Children[0]
-	bestScore := negInf
-	switch isWhite {
-	case true:
-		for _, c := range n.Children {
-			if c.Evaluation > bestScore {
-				bestScore, bestMove = c.Evaluation, c
-			}
-		}
-	case false:
-		bestScore = posInf
-		for _, c := range n.Children {
-			if c.Evaluation < bestScore {
-				bestScore, bestMove = c.Evaluation, c
-			}
-		}
-	}
-
-	return bestMove
 }
 
 func min(a, b int) int {
@@ -132,53 +68,6 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func (n *Node) PickBestMoves(num int) []*Node {
-	moves := n.Children
-	num = min(num, len(moves))
-	sort.Slice(moves, func(i, j int) bool {
-		if n.Position.IsWhite {
-			return moves[i].Evaluation > moves[j].Evaluation
-		} else {
-			return moves[i].Evaluation < moves[j].Evaluation
-		}
-
-	})
-	return moves[:num]
-}
-
-func (n *Node) ConstructLine() []string {
-	line := make([]string, 0)
-	line = append(line, n.MoveToPlay.String())
-	isWhite := n.Position.IsWhite
-	current := n
-	for current.Children != nil {
-		best := current.PickBestMove(isWhite)
-		if best == nil {
-			break
-		}
-		line = append(line, best.MoveToPlay.String())
-		isWhite = !isWhite
-		current = best
-	}
-
-	return line
-}
-
-func (e *EvalEngine) PlayMove(move *Node) {
-	e.RootNode = move
-	e.RootNode.Parent = nil
-}
-
-func (e *EvalEngine) ResetRootWithMove(move string) error {
-	for _, child := range e.RootNode.Children {
-		if child.MoveToPlay.String() == move {
-			e.RootNode = child
-			return nil
-		}
-	}
-	return fmt.Errorf("move not found among children: %s", move)
 }
 
 type CompFunc func(float32, float32) float32

@@ -36,14 +36,9 @@ func main() {
 	r.InitRender(b, e)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
-	best := e.GetMove(ctx)
+	move := e.GetMove(ctx)
 	defer cancel()
-	candidates := e.RootNode.PickBestMoves(3)
-	for _, move := range candidates {
-		fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())
-	}
-	b.MoveLongAlg(best.MoveToPlay)
-	e.PlayMove(best)
-	fmt.Println(best.MoveToPlay)
-	r.Update(best.MoveToPlay)
+	b.MoveLongAlg(move)
+	fmt.Println(move)
+	r.Update(move)
 }

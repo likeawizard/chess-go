@@ -29,24 +29,19 @@ func main() {
 	r.InitRender(b1, e)
 	go func() {
 		for {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10*1000)
 			// ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500*1000)
-			best := e.GetMove(ctx)
+			move := e.GetMove(ctx)
 			defer cancel()
-			// candidates := e.RootNode.PickBestMoves(3)
-			// for _, move := range candidates {
-			// 	fmt.Printf("%.2f %v\n", move.Evaluation, move.ConstructLine())
-			// }
-			if best == nil {
+			if move == 0 {
 				fmt.Println("No legal moves.")
 				return
 			}
-			b1.MoveLongAlg(best.MoveToPlay)
-			e.PlayMove(best)
-			moves = append(moves, best.MoveToPlay)
+			b1.MoveLongAlg(move)
+			moves = append(moves, move)
 
 			b1.WritePGNToFile(b1.GeneratePGN(moves), "./dump.pgn")
-			r.Update(best.MoveToPlay)
+			r.Update(move)
 		}
 	}()
 	r.Run()
