@@ -94,6 +94,10 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			default:
 				eval, best = tempEval, tempMove
 				fmt.Printf("Depth: %d Move: %v (%2.2f)(ac: %d bc: %d)\n", d, best, eval, ac, bc)
+				//found mate stop
+				if tempEval == negInf || tempEval == posInf {
+					done = true
+				}
 			}
 		}
 		wg.Done()
