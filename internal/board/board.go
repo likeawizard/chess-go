@@ -35,6 +35,7 @@ func (b *Board) Copy() *Board {
 type UnMakeMove func()
 type UnMakeMoveOptions struct {
 	isWhite         bool
+	hash            uint64
 	isCastling      bool
 	isEnPassant     bool
 	enPassantTarget Square
@@ -85,6 +86,7 @@ func (b *Board) getUnmake(move Move, opts UnMakeMoveOptions) UnMakeMove {
 		b.EnPassantTarget = opts.enPassantTarget
 		b.CastlingRights = opts.cRights
 		b.IsWhite = !b.IsWhite
+		b.Hash = opts.hash
 	}
 
 	return umake
@@ -94,6 +96,7 @@ func (b *Board) MoveLongAlg(move Move) UnMakeMove {
 	from, to := move.FromTo()
 	unmake := UnMakeMoveOptions{
 		isWhite:         b.IsWhite,
+		hash:            b.Hash,
 		enPassantTarget: b.EnPassantTarget,
 		cRights:         b.CastlingRights,
 		targetPiece:     b.Coords[to],
@@ -104,14 +107,22 @@ func (b *Board) MoveLongAlg(move Move) UnMakeMove {
 		b.castle(move)
 	case b.isEnPassant(move):
 		unmake.isEnPassant = true
-		b.Coords[to] = b.Coords[from]
-		b.Coords[from] = empty
 		direction := Square(8)
 		if !b.IsWhite {
 			direction = -8
 		}
-		unmake.targetPiece = b.Coords[to-direction]
-		b.Coords[to-direction] = empty
+
+		targetSq := to - direction
+		targetPiece := b.Coords[targetSq]
+		unmake.targetPiece = targetPiece
+
+		//Move double advanced pawn back for capture
+		backwards := MoveFromSquares(targetSq, to)
+		b.ZobristSimpleMove(backwards)
+		b.move(backwards)
+
+		b.ZobristSimpleMove(move)
+		b.move(move)
 	case move.Promotion() != 0:
 		unmake.isPromotion = true
 		promoteTo := move.Promotion()
@@ -151,20 +162,27 @@ func (b *Board) move(move Move) {
 }
 
 func (b *Board) castle(move Move) {
+	var kingMove, rookMove Move
 	switch move {
 	case WCastleKing:
-		b.move(WCastleKing)
-		b.move(WCastleKingRook)
+		kingMove = WCastleKing
+		rookMove = WCastleKingRook
 	case WCastleQueen:
-		b.move(WCastleQueen)
-		b.move(WCastleQueenRook)
+		kingMove = WCastleQueen
+		rookMove = WCastleQueenRook
 	case BCastleKing:
-		b.move(BCastleKing)
-		b.move(BCastleKingRook)
+		kingMove = BCastleKing
+		rookMove = BCastleKingRook
 	case BCastleQueen:
-		b.move(BCastleQueen)
-		b.move(BCastleQueenRook)
+		kingMove = BCastleQueen
+		rookMove = BCastleQueenRook
 	}
+
+	b.ZobristSimpleMove(kingMove)
+	b.ZobristSimpleMove(rookMove)
+
+	b.move(kingMove)
+	b.move(rookMove)
 }
 
 func CoordInBounds(c Square) bool {

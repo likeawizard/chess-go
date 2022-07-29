@@ -10,14 +10,19 @@ import (
 
 var ac, bc int
 
-func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha, beta float32) (float32, []board.Move) {
+func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, depth int, alpha, beta float32) (float32, []board.Move) {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0, nil
 	default:
 		m, c := e.Board.GetLegalMoves()
-		all := append(c, m...)
+		pvm := board.Move(0)
+		if len(pv) > 0 {
+			pvm = pv[0]
+			pv = pv[1:]
+		}
+		all := e.Board.OrderMoves(pvm, m, c)
 		if depth == 0 || len(all) == 0 {
 			return e.EvalFunction(e, e.Board), make([]board.Move, 0)
 		}
@@ -30,7 +35,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 			move = all[0]
 			for i := 0; i < len(all); i++ {
 				umove := e.Board.MoveLongAlg(all[i])
-				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
+				temp, tempMoves := e.alphabetaWithTimeout(ctx, pv, depth-1, alpha, beta)
 				if temp > value {
 					value = temp
 					move = all[i]
@@ -50,7 +55,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 			move = all[0]
 			for i := 0; i < len(all); i++ {
 				umove := e.Board.MoveLongAlg(all[i])
-				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
+				temp, tempMoves := e.alphabetaWithTimeout(ctx, pv, depth-1, alpha, beta)
 				if temp < value {
 					value = temp
 					move = all[i]
@@ -73,6 +78,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 	var wg sync.WaitGroup
 	var best board.Move
 	var eval float32
+	pv := make([]board.Move, depth)
 	done := false
 	wg.Add(1)
 	go func() {
@@ -84,9 +90,9 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			}
 
 			ac, bc = 0, 0
-			tempEval, tempMove := e.alphabetaWithTimeout(ctx, d, negInf, posInf)
+			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, negInf, posInf)
 
-			if tempMove[0] == 0 {
+			if len(tempMove) == 0 {
 				break
 			}
 
@@ -98,7 +104,8 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 				return
 			default:
 				eval, best = tempEval, tempMove[0]
-				fmt.Printf("Depth: %d Move: %v (%2.2f)(ac: %d bc: %d)\n", d, tempMove, eval, ac, bc)
+				pv = tempMove
+				fmt.Printf("Depth: %d (%2.2f) Move: %v (ac: %d bc: %d)\n", d, eval, tempMove, ac, bc)
 				//found mate stop
 				if tempEval == negInf || tempEval == posInf {
 					done = true
