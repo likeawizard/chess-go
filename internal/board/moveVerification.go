@@ -75,10 +75,9 @@ func (b *Board) isOpponentPiece(us, them Square) bool {
 }
 
 func (b *Board) IsInCheckAfterMove(move Move) bool {
-	bb := b.Copy()
-	side := bb.SideToMove
-	bb.MoveLongAlg(move)
-	return bb.IsInCheck(side)
+	umake := b.MoveLongAlg(move)
+	defer umake()
+	return b.IsInCheck(!b.IsWhite)
 }
 
 func (b *Board) PruneIllegal(moves, captures []Move) ([]Move, []Move) {
@@ -128,23 +127,22 @@ func (b *Board) GetAvailableMovesRaw(c Square, excludeCastling bool) (availableM
 	}
 }
 
-func (b *Board) IsInCheck(color byte) bool {
+func (b *Board) IsInCheck(isWhite bool) bool {
 	var target Square
-	iswhite := color == WhiteToMove
 	pawnDirection := Square(-8)
 	offset := uint8(0)
-	king := b.GetKing(color)
-	if iswhite {
+	king := b.GetKing(isWhite)
+	if isWhite {
 		pawnDirection = 8
 		offset = 6
 	}
 
 	target = king + 1 + pawnDirection
-	if CoordInBounds(target) && b.Coords[target] == P+offset {
+	if king%8 != 7 && CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
 	target = king - 1 + pawnDirection
-	if CoordInBounds(target) && b.Coords[target] == P+offset {
+	if king%8 != 0 && CoordInBounds(target) && b.Coords[target] == P+offset {
 		return true
 	}
 
@@ -371,8 +369,8 @@ func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []
 		return
 	}
 
-	if b.SideToMove == WhiteToMove {
-		m, c := b.GetMovesNoCastling(BlackToMove)
+	if b.IsWhite {
+		m, c := b.GetMovesNoCastling(false)
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (
@@ -402,7 +400,7 @@ func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []
 			moves = append(moves, WCastleKing)
 		}
 	} else {
-		m, c := b.GetMovesNoCastling(WhiteToMove)
+		m, c := b.GetMovesNoCastling(true)
 		moveDest := movesToDestinationSquaresString(m)
 		captureDest := movesToDestinationSquaresString(c)
 		var (

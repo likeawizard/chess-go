@@ -264,18 +264,18 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			}
 			timeManagment = *NewTimeManagement(gs, isWhite)
 
-			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
-				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+			if isWhite == (e.Board.IsWhite) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.Board.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel := timeManagment.GetTimeoutContext()
 				best := e.GetMove(ctx)
-				if best == nil {
+				if best == 0 {
 					return
 				}
 				defer cancel()
-				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best, game.GameID, e.Board.ExportFEN())
 				timeManagment.StartStopWatch()
-				lc.MakeMove(game.GameID, best.MoveToPlay.String())
+				lc.MakeMove(game.GameID, best.String())
 			} else {
 				timeManagment.MeasureLag()
 				if lc.Ponder {
@@ -293,27 +293,27 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				if cancel != nil {
 					cancel()
 				}
-				e.ResetRootWithMove(lastMove)
+				e.Board.MoveLongAlg(board.MoveFromString(lastMove))
 			}
 
-			if isWhite == (e.RootNode.Position.SideToMove == board.WhiteToMove) {
-				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.RootNode.Position.ExportFEN())
+			if isWhite == (e.Board.IsWhite) {
+				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.Board.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel = timeManagment.GetTimeoutContext()
 				defer cancel()
 				best := e.GetMove(ctx)
-				if best == nil {
+				if best == 0 {
 					return
 				}
-				fmt.Printf("Playing %s in %s (FEN: %s)\n", best.MoveToPlay, game.GameID, e.RootNode.Position.ExportFEN())
+				fmt.Printf("Playing %s in %s (FEN: %s)\n", best, game.GameID, e.Board.ExportFEN())
 				timeManagment.StartStopWatch()
-				lc.MakeMove(game.GameID, best.MoveToPlay.String())
+				lc.MakeMove(game.GameID, best.String())
 			} else {
 				timeManagment.MeasureLag()
 				if lc.Ponder {
 					ctx, cancel = timeManagment.GetPonderContext()
 					defer cancel()
-					fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.RootNode.Position.ExportFEN())
+					fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.Board.ExportFEN())
 					go e.GetMove(ctx)
 				}
 			}

@@ -89,7 +89,7 @@ func (b *Board) ZobristCastling(right CastlingRights) {
 
 func (b *Board) ZobristPromotion(move Move) {
 	offset := uint8(6)
-	if b.SideToMove == WhiteToMove {
+	if b.IsWhite {
 		offset = 0
 	}
 	promotion := move.Promotion()

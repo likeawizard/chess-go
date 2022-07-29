@@ -46,9 +46,8 @@ func (b *Board) ExportFEN() string {
 		if b.CastlingRights&BOOO != 0 {
 			castlingRights += "q"
 		}
-		if castlingRights == "" {
-			castlingRights = "-"
-		}
+	} else {
+		castlingRights = "-"
 	}
 
 	epString := "-"
@@ -56,7 +55,12 @@ func (b *Board) ExportFEN() string {
 		epString = b.EnPassantTarget.String()
 	}
 
-	fen += fmt.Sprintf(" %c %s %s %d %d", b.SideToMove, castlingRights, epString, b.HalfMoveCounter, b.FullMoveCounter)
+	sideToMove := WhiteToMove
+	if !b.IsWhite {
+		sideToMove = BlackToMove
+	}
+
+	fen += fmt.Sprintf(" %c %s %s %d %d", sideToMove, castlingRights, epString, b.HalfMoveCounter, b.FullMoveCounter)
 	return fen
 }
 
@@ -75,7 +79,7 @@ func (b *Board) ImportFEN(fen string) error {
 		return err
 	}
 
-	b.SideToMove = sideToMove[0]
+	b.IsWhite = sideToMove[0] == WhiteToMove
 	fm, err := strconv.Atoi(fullMove)
 	if err != nil {
 		return err
@@ -162,7 +166,7 @@ func (b *Board) MoveToPretty(move string) (pretty string) {
 	from, to := MoveFromString(move).FromTo()
 	targetPiece := b.Coords[to]
 	piece := b.Coords[from]
-	moves, captures := b.GetMovesNoCastling(b.SideToMove)
+	moves, captures := b.GetMovesNoCastling(b.IsWhite)
 	all := append(moves, captures...)
 	switch {
 	case piece == P || piece == p:

@@ -18,7 +18,7 @@ package board
 type Board struct {
 	Hash            uint64
 	Coords          [64]uint8
-	SideToMove      byte
+	IsWhite         bool
 	CastlingRights  CastlingRights
 	EnPassantTarget Square
 	HalfMoveCounter uint8

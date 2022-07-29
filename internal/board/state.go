@@ -57,10 +57,10 @@ func (b *Board) updateEnPassantTarget(move Move) {
 
 func (b *Board) updateSideToMove() {
 	b.ZobristSideToMove()
-	if b.SideToMove == WhiteToMove {
-		b.SideToMove = BlackToMove
-	} else {
-		b.SideToMove = WhiteToMove
+	b.IsWhite = !b.IsWhite
+
+	//Increment moves after black moves
+	if b.IsWhite {
 		b.FullMoveCounter++
 	}
 }

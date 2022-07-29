@@ -52,8 +52,7 @@ func MoveFromString(s string) Move {
 }
 
 func MoveFromSquares(from, to Square) Move {
-	from = from << 6
-	return Move(from + to)
+	return Move(to | from<<6)
 }
 
 func (m Move) From() Square {
@@ -69,13 +68,16 @@ func (m Move) Promotion() uint8 {
 }
 
 func (m Move) SetPromotion(prom uint8) Move {
-	m &= 4095
-	m += Move(prom) << 12
-	return m
+	return m&4095 | Move(prom)<<12
 }
 
 func (m Move) FromTo() (Square, Square) {
 	return Square(m>>6) & 63, Square(m) & 63
+}
+
+func (m Move) Reverse() Move {
+	return m>>6&63 | m&63<<6
+
 }
 
 func (m Move) String() string {
