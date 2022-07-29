@@ -10,29 +10,35 @@ import (
 
 var ac, bc int
 
-func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha, beta float32) (float32, board.Move) {
+func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha, beta float32) (float32, []board.Move) {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
-		return 0, 0
+		return 0, nil
 	default:
-		if depth == 0 {
-			return e.EvalFunction(e, e.Board), 0
-		}
-
 		m, c := e.Board.GetLegalMoves()
 		all := append(c, m...)
+		if depth == 0 || len(all) == 0 {
+			return e.EvalFunction(e, e.Board), make([]board.Move, 0)
+		}
+
 		var move board.Move
-		var value, temp float32
+		var movesVar []board.Move
+		var value float32
 		if e.Board.IsWhite {
 			value = negInf
+			move = all[0]
 			for i := 0; i < len(all); i++ {
-				umove := e.Board.MoveLongAlg(all[i])
-				temp, _ = e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
-				if temp > value {
-					move = all[i]
+				if all[i] == 0 {
+					panic(1)
 				}
-				value = Max32(value, temp)
+				umove := e.Board.MoveLongAlg(all[i])
+				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
+				if temp >= value {
+					value = temp
+					move = all[i]
+					movesVar = tempMoves
+				}
 				umove()
 
 				if value >= beta {
@@ -41,16 +47,18 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 				}
 				alpha = Max32(alpha, value)
 			}
-			return value, move
+			return value, append([]board.Move{move}, movesVar...)
 		} else {
 			value = posInf
+			move = all[0]
 			for i := 0; i < len(all); i++ {
 				umove := e.Board.MoveLongAlg(all[i])
-				temp, _ = e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
-				if temp < value {
+				temp, tempMoves := e.alphabetaWithTimeout(ctx, depth-1, alpha, beta)
+				if temp <= value {
+					value = temp
 					move = all[i]
+					movesVar = tempMoves
 				}
-				value = Min32(value, temp)
 				umove()
 
 				if value <= alpha {
@@ -59,7 +67,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, depth int, alpha,
 				}
 				beta = Min32(beta, value)
 			}
-			return value, move
+			return value, append([]board.Move{move}, movesVar...)
 		}
 	}
 }
@@ -81,7 +89,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			ac, bc = 0, 0
 			tempEval, tempMove := e.alphabetaWithTimeout(ctx, d, negInf, posInf)
 
-			if tempMove == 0 {
+			if tempMove[0] == 0 {
 				break
 			}
 
@@ -92,8 +100,8 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 				wg.Done()
 				return
 			default:
-				eval, best = tempEval, tempMove
-				fmt.Printf("Depth: %d Move: %v (%2.2f)(ac: %d bc: %d)\n", d, best, eval, ac, bc)
+				eval, best = tempEval, tempMove[0]
+				fmt.Printf("Depth: %d Move: %v (%2.2f)(ac: %d bc: %d)\n", d, tempMove, eval, ac, bc)
 				//found mate stop
 				if tempEval == negInf || tempEval == posInf {
 					done = true
