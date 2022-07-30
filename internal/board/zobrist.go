@@ -8,7 +8,7 @@ func init() {
 	seed = rand.Uint64()
 	castlingKeys = make(map[CastlingRights]uint64)
 	for sq := 0; sq < 64; sq++ {
-		for i := 0; i <= 12; i++ {
+		for i := 1; i <= 12; i++ {
 			pieceKeys[i][sq] = rand.Uint64()
 		}
 		enPassantKeys[sq] = rand.Uint64()
@@ -55,11 +55,13 @@ func (b *Board) ZobristSimpleMove(move Move) {
 	finish := b.Coords[to]
 
 	// unset target piece at destination and set new
-	b.Hash ^= pieceKeys[finish][to]
+	if finish != 0 {
+		b.Hash ^= pieceKeys[finish][to]
+	}
+
 	b.Hash ^= pieceKeys[start][to]
 	// unset moved piece and replace with empty
 	b.Hash ^= pieceKeys[start][from]
-	b.Hash ^= pieceKeys[0][from]
 }
 
 func (b *Board) ZobristSideToMove() {
@@ -107,7 +109,10 @@ func (b *Board) ZobristPromotion(move Move) {
 	start := b.Coords[from]
 	finish := b.Coords[to]
 
-	b.Hash ^= pieceKeys[finish][to]
+	if finish != 0 {
+		b.Hash ^= pieceKeys[finish][to]
+	}
+
 	// set destination with newly promoted piece
 	b.Hash ^= pieceKeys[promotion][to]
 	b.Hash ^= pieceKeys[finish][from]
