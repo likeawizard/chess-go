@@ -8,10 +8,10 @@ func (b *Board) updateCastlingRights(move Move) {
 
 	switch {
 	case b.CastlingRights&(WOOO|WOO) != 0 && from == WCastleQueen.From():
-		if b.CastlingRights&^WOO != 0 {
+		if b.CastlingRights&WOO != 0 {
 			b.ZobristCastlingRights(WOO)
 		}
-		if b.CastlingRights&^WOOO != 0 {
+		if b.CastlingRights&WOOO != 0 {
 			b.ZobristCastlingRights(WOOO)
 		}
 
@@ -19,10 +19,10 @@ func (b *Board) updateCastlingRights(move Move) {
 		b.CastlingRights = b.CastlingRights &^ WOO
 
 	case b.CastlingRights&(BOOO|BOO) != 0 && from == BCastleQueen.From():
-		if b.CastlingRights&^BOOO != 0 {
+		if b.CastlingRights&BOOO != 0 {
 			b.ZobristCastlingRights(BOOO)
 		}
-		if b.CastlingRights&^BOO != 0 {
+		if b.CastlingRights&BOO != 0 {
 			b.ZobristCastlingRights(BOO)
 		}
 
