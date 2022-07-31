@@ -9,6 +9,7 @@ var compassBlock = [][]Square{}
 
 var knightMoves = [][]Square{}
 
+//pre calculate distances in all compass directions and possible knight jumps for every square
 func init() {
 	compassBlock = make([][]Square, 64)
 	min := func(a, b Square) Square {
@@ -29,7 +30,6 @@ func init() {
 }
 
 func preCalculateKnightMoves() {
-	// var knightVector = [8]Square{15, 17, 10, 6, -15, -17, -10, -6}
 	knightMoves = make([][]Square, 64)
 	for c, comp := range compassBlock {
 		moves := make([]Square, 0)
@@ -69,9 +69,15 @@ func preCalculateKnightMoves() {
 	}
 }
 
-func (b *Board) isOpponentPiece(us, them Square) bool {
-	ourPiece, theirPiece := b.Coords[us], b.Coords[them]
-	return (ourPiece < 7 && theirPiece >= 7) || (ourPiece >= 7 && theirPiece < 7 && theirPiece != 0)
+func (b *Board) isOpponentPiece(isWhite bool, sq Square) bool {
+	theirPiece := b.Coords[sq]
+	if theirPiece == 0 {
+		return false
+	} else if isWhite && theirPiece > 6 || !isWhite && theirPiece <= 6 {
+		return true
+	} else {
+		return false
+	}
 }
 
 func (b *Board) IsInCheckAfterMove(move Move) bool {
@@ -128,55 +134,8 @@ func (b *Board) GetAvailableMovesRaw(c Square, excludeCastling bool) (availableM
 }
 
 func (b *Board) IsInCheck(isWhite bool) bool {
-	var target Square
-	pawnDirection := Square(-8)
-	offset := uint8(0)
 	king := b.GetKing(isWhite)
-	if isWhite {
-		pawnDirection = 8
-		offset = 6
-	}
-
-	target = king + 1 + pawnDirection
-	if king%8 != 7 && CoordInBounds(target) && b.Coords[target] == P+offset {
-		return true
-	}
-	target = king - 1 + pawnDirection
-	if king%8 != 0 && CoordInBounds(target) && b.Coords[target] == P+offset {
-		return true
-	}
-
-	for _, knightMove := range knightMoves[king] {
-		if CoordInBounds(knightMove) && b.Coords[knightMove] == N+offset {
-			return true
-		}
-	}
-
-	_, kingThreats := b.GetKingMoves(king, true)
-	_, bishopThreats := b.GetBishopMoves(king)
-	_, rookThreats := b.GetRookMoves(king)
-
-	for _, diagAttacks := range kingThreats {
-		attacker := b.Coords[diagAttacks.To()]
-		if attacker == Q+offset || attacker == K+offset {
-			return true
-		}
-	}
-
-	for _, diagAttacks := range bishopThreats {
-		attacker := b.Coords[diagAttacks.To()]
-		if attacker == Q+offset || attacker == B+offset {
-			return true
-		}
-	}
-
-	for _, rookAttacker := range rookThreats {
-		attacker := b.Coords[rookAttacker.To()]
-		if attacker == Q+offset || attacker == R+offset {
-			return true
-		}
-	}
-	return false
+	return b.IsThretened(isWhite, king)
 }
 
 func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
@@ -206,14 +165,14 @@ func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
 
 	if c%8 > 0 && c%8 < 7 {
 		target = c + direction + 1
-		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
 			captures = append(captures, MoveFromSquares(c, target))
 			if target < 15 || target > 55 {
 				hasPromotion = true
 			}
 		}
 		target = c + direction - 1
-		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
 			captures = append(captures, MoveFromSquares(c, target))
 			if target < 15 || target > 55 {
 				hasPromotion = true
@@ -223,7 +182,7 @@ func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
 
 	if c%8 == 0 {
 		target = c + direction + 1
-		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
 			captures = append(captures, MoveFromSquares(c, target))
 			if target < 15 || target > 55 {
 				hasPromotion = true
@@ -233,7 +192,7 @@ func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
 
 	if c%8 == 7 {
 		target = c + direction - 1
-		if CoordInBounds(target) && b.isOpponentPiece(c, target) {
+		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
 			captures = append(captures, MoveFromSquares(c, target))
 			if target < 15 || target > 55 {
 				hasPromotion = true
@@ -306,15 +265,13 @@ func (b *Board) GetSlidingMoves(c Square, mode SlideMode) (moves, captures []Mov
 	for dirIdx := compassMin; dirIdx < compassMax; dirIdx++ {
 		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
 			target = c + i*compass[dirIdx]
-			if CoordInBounds(target) {
-				if b.Coords[target] == 0 {
-					moves = append(moves, MoveFromSquares(c, target))
-				} else if b.isOpponentPiece(c, target) {
-					captures = append(captures, MoveFromSquares(c, target))
-					break
-				} else {
-					break
-				}
+			if b.Coords[target] == 0 {
+				moves = append(moves, MoveFromSquares(c, target))
+			} else if b.isOpponentPiece(b.IsWhite, target) {
+				captures = append(captures, MoveFromSquares(c, target))
+				break
+			} else {
+				break
 			}
 		}
 	}
@@ -346,7 +303,7 @@ func (b *Board) GetKnightMoves(c Square) (moves, captures []Move) {
 	for _, knightMove := range knightMoves[c] {
 		if b.Coords[knightMove] == 0 {
 			moves = append(moves, MoveFromSquares(c, knightMove))
-		} else if b.isOpponentPiece(c, knightMove) {
+		} else if b.isOpponentPiece(b.IsWhite, knightMove) {
 			captures = append(captures, MoveFromSquares(c, knightMove))
 		}
 	}
@@ -358,96 +315,55 @@ func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []
 		if compassBlock[c][i] == 0 {
 			continue
 		}
-		if CoordInBounds(c+compass[i]) && b.Coords[c+compass[i]] == 0 {
+
+		if b.IsThretened(b.IsWhite, c+compass[i]) {
+			continue
+		}
+
+		if b.Coords[c+compass[i]] == 0 {
 			moves = append(moves, MoveFromSquares(c, c+compass[i]))
-		} else if CoordInBounds(c+compass[i]) && b.isOpponentPiece(c, c+compass[i]) {
+		} else if b.isOpponentPiece(b.IsWhite, c+compass[i]) {
 			captures = append(captures, MoveFromSquares(c, c+compass[i]))
 		}
 	}
 
-	if excludeCastling {
+	if excludeCastling || b.IsInCheck(b.IsWhite) {
 		return
 	}
 
-	if b.IsWhite {
-		m, c := b.GetMovesNoCastling(false)
-		moveDest := movesToDestinationSquaresString(m)
-		captureDest := movesToDestinationSquaresString(c)
-		var (
-			b1 = Square(1)
-			c1 = Square(2)
-			d1 = Square(3)
-			e1 = Square(4)
-			f1 = Square(5)
-			g1 = Square(6)
+	bSq := Square(1)
+	cSq := Square(2)
+	dSq := Square(3)
+	fSq := Square(5)
+	gSq := Square(6)
+	kingSideCastle := WCastleKing
+	kingSideCastleRights := WOO
+	queenSideCastle := WCastleQueen
+	queenSideCastleRights := WOOO
 
-			b2 = Square(9)
-			c2 = Square(10)
-			e2 = Square(12)
-			g2 = Square(14)
-			h2 = Square(15)
-		)
-
-		if b.CastlingRights&WOOO != 0 && b.Coords[c1] == 0 && b.Coords[b1] == 0 && b.Coords[d1] == 0 &&
-			b.Coords[b2] != p && b.Coords[c2] != p && b.Coords[e2] != p &&
-			!containsSqaure(moveDest, c1) && !containsSqaure(moveDest, d1) && !containsSqaure(captureDest, e1) {
-			moves = append(moves, WCastleQueen)
-		}
-
-		if b.CastlingRights&WOO != 0 && b.Coords[f1] == 0 && b.Coords[g1] == 0 &&
-			b.Coords[g2] != p && b.Coords[h2] != p && b.Coords[e2] != p &&
-			!containsSqaure(moveDest, f1) && !containsSqaure(moveDest, g1) && !containsSqaure(captureDest, e1) {
-			moves = append(moves, WCastleKing)
-		}
-	} else {
-		m, c := b.GetMovesNoCastling(true)
-		moveDest := movesToDestinationSquaresString(m)
-		captureDest := movesToDestinationSquaresString(c)
-		var (
-			b8 = Square(57)
-			c8 = Square(58)
-			d8 = Square(59)
-			e8 = Square(60)
-			f8 = Square(61)
-			g8 = Square(62)
-
-			b7 = Square(49)
-			c7 = Square(50)
-			e7 = Square(52)
-			g7 = Square(54)
-			h7 = Square(55)
-		)
-
-		if b.CastlingRights&BOOO != 0 && b.Coords[c8] == 0 && b.Coords[b8] == 0 && b.Coords[d8] == 0 &&
-			b.Coords[b7] != P && b.Coords[c7] != P && b.Coords[e7] != P &&
-
-			!containsSqaure(moveDest, c8) && !containsSqaure(moveDest, d8) && !containsSqaure(captureDest, e8) {
-			moves = append(moves, BCastleQueen)
-		}
-
-		if b.CastlingRights&BOO != 0 && b.Coords[f8] == 0 && b.Coords[g8] == 0 &&
-			b.Coords[g7] != P && b.Coords[h7] != P && b.Coords[e7] != P &&
-			!containsSqaure(moveDest, f8) && !containsSqaure(moveDest, g8) && !containsSqaure(captureDest, e8) {
-			moves = append(moves, BCastleKing)
-		}
+	if !b.IsWhite {
+		bSq = Square(57)
+		cSq = Square(58)
+		dSq = Square(59)
+		fSq = Square(61)
+		gSq = Square(62)
+		kingSideCastle = BCastleKing
+		kingSideCastleRights = BOO
+		queenSideCastle = BCastleQueen
+		queenSideCastleRights = BOOO
 	}
+
+	if b.CastlingRights&queenSideCastleRights != 0 && b.Coords[cSq] == 0 && b.Coords[bSq] == 0 && b.Coords[dSq] == 0 &&
+		!b.IsThretened(b.IsWhite, cSq) && !b.IsThretened(b.IsWhite, dSq) {
+		moves = append(moves, queenSideCastle)
+	}
+
+	if b.CastlingRights&kingSideCastleRights != 0 && b.Coords[fSq] == 0 && b.Coords[gSq] == 0 &&
+		!b.IsThretened(b.IsWhite, fSq) && !b.IsThretened(b.IsWhite, gSq) {
+		moves = append(moves, kingSideCastle)
+	}
+
 	return
-}
-
-func containsSqaure(squares []Square, needle Square) bool {
-	for i := 0; i < len(squares); i++ {
-		if needle == squares[i] {
-			return true
-		}
-	}
-	return false
-}
-
-func movesToDestinationSquaresString(moves []Move) (destination []Square) {
-	for _, move := range moves {
-		destination = append(destination, move.To())
-	}
-	return destination
 }
 
 func (b *Board) IsCastling(move Move) bool {
@@ -482,4 +398,108 @@ func (b *Board) isEnPassant(move Move) bool {
 	from, to := move.FromTo()
 	piece := b.Coords[from]
 	return (piece == 1 || piece == 7) && to == b.EnPassantTarget
+}
+
+// Calculate absolute pins to the king to determine move legality of pinned piece. Only moves in the pin direction are allowed
+// Move represents square combinations of from -pinned piece and to - the pinner.
+func (b *Board) GetPins(isWhite bool) []Move {
+	king := b.GetKing(isWhite)
+	offset := uint8(6)
+	if !b.IsWhite {
+		offset = 0
+	}
+
+	// idx 0..3 rook pins, 4..7 rooks
+	doesPin := func(idx int, piece uint8) bool {
+		if idx < 4 && (piece == Q+offset || piece == R+offset) {
+			return true
+		} else if idx >= 4 && (piece == Q+offset || piece == B+offset) {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	var target Square
+	pins := make([]Move, 0)
+
+	for dirIdx := 0; dirIdx < 8; dirIdx++ {
+		pinned := Square(-1)
+		for i := Square(1); i <= compassBlock[king][dirIdx]; i++ {
+			target = king + i*compass[dirIdx]
+			if b.Coords[target] == 0 {
+				continue
+			}
+
+			if !b.isOpponentPiece(isWhite, target) && pinned == -1 {
+				// set first friendly piece in direction as pinned
+				pinned = target
+			} else if !b.isOpponentPiece(isWhite, target) && pinned != -1 {
+				// if second piece is also friendly. stop no pins in direction possible
+				break
+			} else if pinned != 0 && doesPin(dirIdx, b.Coords[target]) {
+				// if piece is correct pinner type add pin
+				pins = append(pins, MoveFromSquares(pinned, target))
+				break
+			} else {
+				// opponent piece cant pin in this direction
+				break
+			}
+		}
+	}
+
+	return pins
+}
+
+// Determine if a square is thretened by the opposition
+// checks for opposing p
+func (b *Board) IsThretened(isWhite bool, sq Square) bool {
+	var target Square
+	pawnDirection := Square(-8)
+	offset := uint8(0)
+	if isWhite {
+		pawnDirection = 8
+		offset = 6
+	}
+
+	target = sq + 1 + pawnDirection
+	if sq%8 != 7 && CoordInBounds(target) && b.Coords[target] == P+offset {
+		return true
+	}
+	target = sq - 1 + pawnDirection
+	if sq%8 != 0 && CoordInBounds(target) && b.Coords[target] == P+offset {
+		return true
+	}
+
+	for _, knightMove := range knightMoves[sq] {
+		if CoordInBounds(knightMove) && b.Coords[knightMove] == N+offset {
+			return true
+		}
+	}
+
+	isThreat := func(idx int, distance Square, piece uint8) bool {
+		if idx < 4 && (piece == Q+offset || piece == R+offset || (distance == 1 && piece == K+offset)) {
+			return true
+		} else if idx >= 4 && (piece == Q+offset || piece == B+offset || (distance == 1 && piece == K+offset)) {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	for dirIdx := 0; dirIdx < 8; dirIdx++ {
+		for i := Square(1); i <= compassBlock[sq][dirIdx]; i++ {
+			target = sq + i*compass[dirIdx]
+			if b.Coords[target] == 0 {
+				continue
+			}
+
+			if !b.isOpponentPiece(isWhite, target) || !isThreat(dirIdx, i, b.Coords[target]) {
+				break
+			} else if b.isOpponentPiece(isWhite, target) && isThreat(dirIdx, i, b.Coords[target]) {
+				return true
+			}
+		}
+	}
+	return false
 }

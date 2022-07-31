@@ -34,9 +34,13 @@ func PerftDebug(fen string, depth int) {
 	b.ImportFEN(fen)
 	m, c := b.GetLegalMoves()
 	all := append(m, c...)
+	nodesSearched := 0
 	for _, move := range all {
 		unmove := b.MoveLongAlg(move)
-		fmt.Printf("%s: %d\n", move, traverse(b, depth-1))
+		nodes := traverse(b, depth-1)
+		nodesSearched += nodes
+		fmt.Printf("%s: %d\n", move, nodes)
 		unmove()
 	}
+	fmt.Println("\nNodes searched: ", nodesSearched)
 }
