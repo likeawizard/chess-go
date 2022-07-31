@@ -47,14 +47,27 @@ func (b *Board) GetPieces(isWhite bool) (pieces []Square) {
 func (b *Board) GetLegalMoves() (moves, captures []Move) {
 	pins := b.GetPins(b.IsWhite)
 	_ = pins
-	pieces := b.GetPieces(b.IsWhite)
-	for _, piece := range pieces {
-		pin := getPin(piece, pins)
-		m, c := b.GetMovesForPiece(piece, pin)
-		moves = append(moves, m...)
-		captures = append(captures, c...)
+
+	var checks []Move
+	check := Move(0)
+	if inCheck := b.IsInCheck(b.IsWhite); inCheck {
+		checks = b.GetChecks(b.IsWhite)
+		check = checks[0]
 	}
-	return b.PruneIllegal(moves, captures)
+
+	// If double-check only consider king moves
+	if len(checks) == 2 {
+		return b.GetMovesForPiece(b.GetKing(b.IsWhite), 0, 0)
+	} else {
+		pieces := b.GetPieces(b.IsWhite)
+		for _, piece := range pieces {
+			pin := getPin(piece, pins)
+			m, c := b.GetMovesForPiece(piece, pin, check)
+			moves = append(moves, m...)
+			captures = append(captures, c...)
+		}
+		return
+	}
 }
 
 func getPin(sq Square, pins []Move) Move {
