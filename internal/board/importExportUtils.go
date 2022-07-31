@@ -166,7 +166,7 @@ func (b *Board) MoveToPretty(move string) (pretty string) {
 	from, to := MoveFromString(move).FromTo()
 	targetPiece := b.Coords[to]
 	piece := b.Coords[from]
-	moves, captures := b.GetMovesNoCastling(b.IsWhite)
+	moves, captures := b.GetLegalMoves()
 	all := append(moves, captures...)
 	switch {
 	case piece == P || piece == p:

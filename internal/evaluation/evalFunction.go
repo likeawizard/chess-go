@@ -153,7 +153,8 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 	for _, piece := range whitePieces {
 		pieceType := b.Coords[piece]
 		baseWeight := PieceWeights[b.Coords[piece]-1]
-		moves, captures := b.GetAvailableMoves(piece)
+		// TODO: eval for pinned pieces?
+		moves, captures := b.GetMovesForPiece(piece, 0, 0)
 		pieceEval = baseWeight + float32(len(moves))*moveWeight + float32(len(captures))*captureWeight + getPieceSpecificScore(pieceType, piece, board.WhiteToMove)
 		if DEBUG {
 			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
@@ -167,7 +168,7 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 	for _, piece := range blackPieces {
 		pieceType := b.Coords[piece]
 		baseWeight := PieceWeights[b.Coords[piece]-1]
-		moves, captures := b.GetAvailableMoves(piece)
+		moves, captures := b.GetMovesForPiece(piece, 0, 0)
 		pieceEval = baseWeight - float32(len(moves))*moveWeight - float32(len(captures))*captureWeight - getPieceSpecificScore(pieceType, piece, board.BlackToMove)
 		if DEBUG {
 			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
