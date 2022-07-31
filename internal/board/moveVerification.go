@@ -108,7 +108,7 @@ func (b *Board) GetMovesForPiece(c Square, pin Move) (availableMoves, availableC
 
 	switch piece {
 	case P:
-		return b.GetPawnMoves(c)
+		return b.GetPawnMoves(c, pin)
 	case B:
 		return b.GetBishopMoves(c, pin)
 	case N:
@@ -134,93 +134,68 @@ func (b *Board) IsInCheck(isWhite bool) bool {
 	return b.IsThretened(isWhite, king)
 }
 
-func (b *Board) GetPawnMoves(c Square) (moves, captures []Move) {
+func (b *Board) GetPawnMoves(c Square, pin Move) (moves, captures []Move) {
 	var target Square
 	isWhite := b.Coords[c] <= PieceOffset
 	var isFirstMove bool
 	var direction = Square(8)
 	hasPromotion := false
+	pinnedDirections := GetCompassPinned(pin)
+	westPin := pinnedDirections[4]
+	eastPin := pinnedDirections[5]
+	_ = westPin
+	_ = eastPin
 
 	if isWhite {
 		isFirstMove = c >= 8 && c < 16
 	} else {
 		isFirstMove = c >= 48 && c < 56
 		direction = -8
+		westPin = pinnedDirections[6]
+		eastPin = pinnedDirections[7]
 	}
 
-	if CoordInBounds(c+direction) && b.Coords[c+direction] == 0 {
+	if pinnedDirections[0] && CoordInBounds(c+direction) && b.Coords[c+direction] == 0 {
 		moves = append(moves, MoveFromSquares(c, c+direction))
 		if c+direction < 15 || c+direction > 55 {
 			hasPromotion = true
 		}
 	}
 
-	if isFirstMove && b.Coords[c+direction] == 0 && b.Coords[c+2*direction] == 0 {
+	if pinnedDirections[0] && isFirstMove && b.Coords[c+direction] == 0 && b.Coords[c+2*direction] == 0 {
 		moves = append(moves, MoveFromSquares(c, c+2*direction))
 	}
 
-	if c%8 > 0 && c%8 < 7 {
-		target = c + direction + 1
-		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
-			captures = append(captures, MoveFromSquares(c, target))
-			if target < 15 || target > 55 {
-				hasPromotion = true
-			}
-		}
-		target = c + direction - 1
-		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
-			captures = append(captures, MoveFromSquares(c, target))
-			if target < 15 || target > 55 {
-				hasPromotion = true
-			}
+	target = c + direction + 1
+	if eastPin && c%8 != 7 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
+		captures = append(captures, MoveFromSquares(c, target))
+		if target < 15 || target > 55 {
+			hasPromotion = true
 		}
 	}
-
-	if c%8 == 0 {
-		target = c + direction + 1
-		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
-			captures = append(captures, MoveFromSquares(c, target))
-			if target < 15 || target > 55 {
-				hasPromotion = true
-			}
-		}
-	}
-
-	if c%8 == 7 {
-		target = c + direction - 1
-		if CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
-			captures = append(captures, MoveFromSquares(c, target))
-			if target < 15 || target > 55 {
-				hasPromotion = true
-			}
+	target = c + direction - 1
+	if westPin && c%8 != 0 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) {
+		captures = append(captures, MoveFromSquares(c, target))
+		if target < 15 || target > 55 {
+			hasPromotion = true
 		}
 	}
 
 	if (c/8 == 3 || c/8 == 4) && b.EnPassantTarget != -1 {
-		if c%8 > 0 && c%8 < 7 {
-			target = c + direction + 1
-			if target == b.EnPassantTarget {
+		target = c + direction + 1
+		if eastPin && c%8 != 7 && target == b.EnPassantTarget {
+			// TODO: lazy but safe. Space for improvement
+			if !b.IsInCheckAfterMove(MoveFromSquares(c, target)) {
 				captures = append(captures, MoveFromSquares(c, target))
 			}
-			target = c + direction - 1
-			if target == b.EnPassantTarget {
+		}
+		target = c + direction - 1
+		if eastPin && c%8 != 0 && target == b.EnPassantTarget {
+			if !b.IsInCheckAfterMove(MoveFromSquares(c, target)) {
 				captures = append(captures, MoveFromSquares(c, target))
 			}
 		}
 
-		if c%8 == 0 {
-			target = c + direction + 1
-			if target == b.EnPassantTarget {
-				captures = append(captures, MoveFromSquares(c, target))
-			}
-		}
-
-		if c%8 == 7 {
-			target = c + direction - 1
-			if target == b.EnPassantTarget {
-				captures = append(captures, MoveFromSquares(c, target))
-			}
-		}
 	}
 
 	if hasPromotion {
