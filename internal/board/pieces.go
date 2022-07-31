@@ -17,7 +17,7 @@ func PieceSymbolToInt(piece string) uint8 {
 	return 0
 }
 func (b *Board) GetKing(isWhite bool) (c Square) {
-	var king uint8 = 6
+	var king uint8 = K
 	if !isWhite {
 		king += PieceOffset
 	}
@@ -44,27 +44,26 @@ func (b *Board) GetPieces(isWhite bool) (pieces []Square) {
 	return
 }
 
-func (b *Board) GetLegalMoves() ([]Move, []Move) {
-	m, c := b.GetMoves(b.IsWhite)
-	return b.PruneIllegal(m, c)
-}
-
-func (b *Board) GetMoves(isWhite bool) (moves, captures []Move) {
-	return b.getMoves(isWhite, false)
-}
-
-func (b *Board) GetMovesNoCastling(isWhite bool) (moves, captures []Move) {
-	return b.getMoves(isWhite, true)
-}
-
-func (b *Board) getMoves(isWhite bool, excludeCastling bool) (moves, captures []Move) {
-	pieces := b.GetPieces(isWhite)
+func (b *Board) GetLegalMoves() (moves, captures []Move) {
+	pins := b.GetPins(b.IsWhite)
+	_ = pins
+	pieces := b.GetPieces(b.IsWhite)
 	for _, piece := range pieces {
-		m, c := b.GetAvailableMovesRaw(piece, excludeCastling)
+		pin := getPin(piece, pins)
+		m, c := b.GetMovesForPiece(piece, pin)
 		moves = append(moves, m...)
 		captures = append(captures, c...)
 	}
-	return
+	return b.PruneIllegal(moves, captures)
+}
+
+func getPin(sq Square, pins []Move) Move {
+	for _, pin := range pins {
+		if sq == pin.From() {
+			return pin
+		}
+	}
+	return 0
 }
 
 func (b *Board) OrderMoves(pv Move, moves, captures []Move) []Move {

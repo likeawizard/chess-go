@@ -103,31 +103,27 @@ func (b *Board) PruneIllegal(moves, captures []Move) ([]Move, []Move) {
 	return legalMoves, legalCaptures
 }
 
-func (b *Board) GetAvailableMoves(c Square) (availableMoves, availableCaptures []Move) {
-	return b.GetAvailableMovesRaw(c, false)
-}
+func (b *Board) GetMovesForPiece(c Square, pin Move) (availableMoves, availableCaptures []Move) {
+	piece := b.Coords[c] % PieceOffset
 
-func (b *Board) GetAvailableMovesExcludeCastling(c Square) (availableMoves, availableCaptures []Move) {
-	return b.GetAvailableMovesRaw(c, true)
-}
-
-func (b *Board) GetAvailableMovesRaw(c Square, excludeCastling bool) (availableMoves, availableCaptures []Move) {
-	piece := b.Coords[c]
-	plainPiece := piece % PieceOffset
-
-	switch {
-	case plainPiece == 1:
+	switch piece {
+	case P:
 		return b.GetPawnMoves(c)
-	case plainPiece == 2:
-		return b.GetBishopMoves(c)
-	case plainPiece == 3:
+	case B:
+		return b.GetBishopMoves(c, pin)
+	case N:
+		// pinned knights can't unpin themselves
+		if pin != 0 {
+			return
+		}
 		return b.GetKnightMoves(c)
-	case plainPiece == 4:
-		return b.GetRookMoves(c)
-	case plainPiece == 5:
-		return b.GetQueenMoves(c)
-	case piece == 6 || piece == 12:
-		return b.GetKingMoves(c, excludeCastling)
+	case R:
+		return b.GetRookMoves(c, pin)
+	case Q:
+		return b.GetQueenMoves(c, pin)
+	case 0:
+		// King%6 == 0. Will fail if square is empty
+		return b.GetKingMoves(c)
 	default:
 		return
 	}
@@ -251,7 +247,33 @@ func (b *Board) addPawnPromotion(moves, captures []Move) ([]Move, []Move) {
 	return processMoves(moves), processMoves(captures)
 }
 
-func (b *Board) GetSlidingMoves(c Square, mode SlideMode) (moves, captures []Move) {
+// Returns compass directions allowed by pin
+func GetCompassPinned(pin Move) []bool {
+	// No pin all directions allowed
+	if pin == 0 {
+		return []bool{true, true, true, true, true, true, true, true}
+	}
+
+	// Pinnded along N & S
+	if (pin.From()-pin.To())%8 == 0 {
+		return []bool{true, true, false, false, false, false, false, false}
+	}
+
+	// Pinnded along W & E
+	if pin.From()/8 == pin.To()/8 {
+		return []bool{false, false, true, true, false, false, false, false}
+	}
+
+	// Pinned along NW & SE
+	if pin.From()%7 == pin.To()%7 {
+		return []bool{false, false, false, false, true, false, false, true}
+	}
+
+	return []bool{false, false, false, false, false, true, true, false}
+
+}
+
+func (b *Board) GetSlidingMoves(c Square, mode SlideMode, pin Move) (moves, captures []Move) {
 	var target Square
 
 	compassMin, compassMax := 0, 8
@@ -262,7 +284,11 @@ func (b *Board) GetSlidingMoves(c Square, mode SlideMode) (moves, captures []Mov
 		compassMax = 4
 	}
 
+	pinnedDirections := GetCompassPinned(pin)
 	for dirIdx := compassMin; dirIdx < compassMax; dirIdx++ {
+		if !pinnedDirections[dirIdx] {
+			continue
+		}
 		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
 			target = c + i*compass[dirIdx]
 			if b.Coords[target] == 0 {
@@ -287,16 +313,16 @@ const (
 	QUEEN
 )
 
-func (b *Board) GetBishopMoves(c Square) (moves, captures []Move) {
-	return b.GetSlidingMoves(c, BISHOP)
+func (b *Board) GetBishopMoves(c Square, pin Move) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, BISHOP, pin)
 }
 
-func (b *Board) GetRookMoves(c Square) (moves, captures []Move) {
-	return b.GetSlidingMoves(c, ROOK)
+func (b *Board) GetRookMoves(c Square, pin Move) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, ROOK, pin)
 }
 
-func (b *Board) GetQueenMoves(c Square) (moves, captures []Move) {
-	return b.GetSlidingMoves(c, QUEEN)
+func (b *Board) GetQueenMoves(c Square, pin Move) (moves, captures []Move) {
+	return b.GetSlidingMoves(c, QUEEN, pin)
 }
 
 func (b *Board) GetKnightMoves(c Square) (moves, captures []Move) {
@@ -310,7 +336,7 @@ func (b *Board) GetKnightMoves(c Square) (moves, captures []Move) {
 	return
 }
 
-func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []Move) {
+func (b *Board) GetKingMoves(c Square) (moves, captures []Move) {
 	for i := 0; i < 8; i++ {
 		if compassBlock[c][i] == 0 {
 			continue
@@ -327,7 +353,7 @@ func (b *Board) GetKingMoves(c Square, excludeCastling bool) (moves, captures []
 		}
 	}
 
-	if excludeCastling || b.IsInCheck(b.IsWhite) {
+	if b.IsInCheck(b.IsWhite) {
 		return
 	}
 
