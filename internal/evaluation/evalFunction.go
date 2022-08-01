@@ -1,7 +1,6 @@
 package eval
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -27,10 +26,10 @@ const (
 	knightInnerRim float32 = -0.05
 )
 
-func getPieceSpecificScore(piece uint8, c board.Square, color byte) float32 {
+func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite bool) float32 {
 	switch piece {
 	case board.P, board.P + 6:
-		return getPawnScore(c, color)
+		return getPawnScore(b, c, isWhite)
 	case board.B, board.B + 6:
 		return getBishopDiagScore(c)
 	case board.N, board.N + 6:
@@ -40,42 +39,138 @@ func getPieceSpecificScore(piece uint8, c board.Square, color byte) float32 {
 	}
 }
 
-func getPawnScore(c board.Square, color byte) float32 {
-	//add structure modifiers - doubled, passed, protected
-	return getPawnAdvancementScore(c, color) + getCentralPawn(c)
+const (
+	isolated      float32 = -0.2
+	doubled       float32 = -0.2
+	protected     float32 = 0.3
+	passedPerRank float32 = 0.1
+)
+
+func getPawnScore(b *board.Board, sq board.Square, isWhite bool) (value float32) {
+	value = 1
+	if IsProtected(b, sq, isWhite) {
+		value += 0.1
+	}
+	if IsDoubled(b, sq, isWhite) {
+		value -= 0.2
+	}
+
+	if IsIsolated(b, sq, isWhite) {
+		value -= 0.1
+	}
+	advancmentValue := float32(0.075)
+	if IsPassed(b, sq, isWhite) {
+		advancmentValue = 0.11
+	}
+
+	if getCentralPawn(sq) {
+		value += 0.3
+	}
+
+	value += advancmentValue * float32(getPawnAdvancement(sq, isWhite))
+
+	return
 }
 
-func getPawnAdvancement(c board.Square, color byte) board.Square {
-	switch color {
-	case board.BlackToMove:
-		return 6 - c/8
-	default:
+// TODO: combine all pawn functions in one with multi value return
+// Piece protected a pawn
+func IsProtected(b *board.Board, sq board.Square, isWhite bool) bool {
+	direction := board.Square(8)
+	pawn := uint8(7)
+
+	if isWhite {
+		direction = -8
+		pawn = 1
+	}
+
+	target := sq + direction + 1
+	if sq%8 != 7 && b.Coords[target] == pawn {
+		return true
+	}
+
+	target = sq + direction - 1
+	if sq%8 != 0 && b.Coords[target] == pawn {
+		return true
+	}
+
+	return false
+}
+
+func IsDoubled(b *board.Board, sq board.Square, isWhite bool) bool {
+	pawn := uint8(7)
+	if isWhite {
+		pawn = 1
+	}
+	file := sq % 8
+	for rank := board.Square(0); rank < 8; rank++ {
+		target := file + rank*8
+		if target != sq && b.Coords[target] == pawn {
+			return true
+		}
+	}
+	return false
+}
+
+// Has no friendly pawns on neighboring files
+func IsIsolated(b *board.Board, sq board.Square, isWhite bool) bool {
+	pawn := uint8(7)
+	if isWhite {
+		pawn = 1
+	}
+	file := sq % 8
+	for rank := board.Square(0); rank < 8; rank++ {
+		target := file + rank*8
+		if file != 7 && b.Coords[target+1] == pawn {
+			return false
+		}
+
+		if file != 0 && b.Coords[target-1] == pawn {
+			return false
+		}
+	}
+	return true
+}
+
+// Has no opponent opposing pawns in front (same or neighbor files)
+func IsPassed(b *board.Board, sq board.Square, isWhite bool) bool {
+	pawn := uint8(1)
+	direction := board.Square(-1)
+	if isWhite {
+		direction = 1
+		pawn = 7
+	}
+	file := sq % 8
+	for rank := (sq / 8) + direction; rank < 8 && rank > 0; rank += direction {
+		target := file + rank*8
+		if b.Coords[target] == pawn {
+			return false
+		}
+
+		if file != 7 && b.Coords[target+1] == pawn {
+			return false
+		}
+
+		if file != 0 && b.Coords[target-1] == pawn {
+			return false
+		}
+	}
+	return true
+}
+
+func getPawnAdvancement(c board.Square, isWhite bool) board.Square {
+	if isWhite {
 		return c/8 - 1
+	} else {
+		return 6 - c/8
 	}
 }
 
-func getPawnAdvancementScore(c board.Square, color byte) float32 {
-	var score float32 = 0
-	switch getPawnAdvancement(c, color) {
-	case 6:
-		score += 0.75
-	case 5:
-		score += 0.5
-	case 4, 3:
-		score += 0.3
-	case 2:
-		score += 0.2
-	}
-
-	return score
-}
-
-func getCentralPawn(c board.Square) float32 {
+func getCentralPawn(c board.Square) bool {
 	switch c {
 	case 27, 28, 35, 36:
-		return 0.2
+		return true
 	default:
-		return 0
+		return false
 	}
 }
 
@@ -145,34 +240,21 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 
 	whitePieces := b.GetPieces(true)
 	blackPieces := b.GetPieces(false)
-	if DEBUG {
-		fmt.Printf("white pieces %d, black pieces %d\n", len(whitePieces), len(blackPieces))
-		fmt.Println("White pieces:")
-	}
 	var eval, pieceEval float32 = 0, 0
 	for _, piece := range whitePieces {
 		pieceType := b.Coords[piece]
 		baseWeight := PieceWeights[b.Coords[piece]-1]
 		// TODO: eval for pinned pieces?
 		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = baseWeight + float32(len(moves))*moveWeight + float32(len(captures))*captureWeight + getPieceSpecificScore(pieceType, piece, board.WhiteToMove)
-		if DEBUG {
-			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
-		}
+		pieceEval = baseWeight + float32(len(moves))*moveWeight + float32(len(captures))*captureWeight + getPieceSpecificScore(b, pieceType, piece, true)
 		eval += pieceEval
 	}
 
-	if DEBUG {
-		fmt.Println("Black pieces")
-	}
 	for _, piece := range blackPieces {
 		pieceType := b.Coords[piece]
 		baseWeight := PieceWeights[b.Coords[piece]-1]
 		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = baseWeight - float32(len(moves))*moveWeight - float32(len(captures))*captureWeight - getPieceSpecificScore(pieceType, piece, board.BlackToMove)
-		if DEBUG {
-			fmt.Printf("Evaluation for piece %s is %f\n", piece, pieceEval)
-		}
+		pieceEval = baseWeight - float32(len(moves))*moveWeight - float32(len(captures))*captureWeight - getPieceSpecificScore(b, pieceType, piece, false)
 		eval += pieceEval
 	}
 

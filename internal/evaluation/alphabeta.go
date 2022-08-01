@@ -57,11 +57,9 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 	var best board.Move
 	var eval float32
 	pv := make([]board.Move, depth)
-	color, alpha, beta := float32(-1), posInf, negInf
+	color := float32(-1)
 	if e.Board.IsWhite {
 		color = 1
-		alpha = negInf
-		beta = posInf
 	}
 	done := false
 	wg.Add(1)
@@ -70,7 +68,6 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			if done {
 				wg.Done()
 				return
-
 			}
 
 			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, negInf, posInf, color)
