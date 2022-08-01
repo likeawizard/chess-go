@@ -91,16 +91,37 @@ func (b *Board) OrderMoves(pv Move, moves, captures []Move) []Move {
 
 var PieceWeights = [13]float32{0, 1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
 
-func (b *Board) getMoveValue(capture Move) float32 {
+// Estimate the potential strength of the move for move ordering
+func (b *Board) getMoveValue(move Move) (value float32) {
+
 	dir := float32(-1)
 	if !b.IsWhite {
 		dir *= -1
 	}
-	from, to := capture.FromTo()
+
+	// Calculate the relative value of exchange
+	from, to := move.FromTo()
 	us, them := PieceWeights[b.Coords[from]], PieceWeights[b.Coords[to]]
 	if them == 0 {
-		return 0
+		value += 0
 	} else {
-		return dir * (0.5*us + them)
+		value += dir * (0.5*us + them)
 	}
+
+	// Prioritize promotions
+	if move.Promotion() != 0 {
+		value += 3
+	}
+
+	// Prioritize moves with check and double check
+	isCheck, isDoubleCheck := b.IsCheck(b.IsWhite, move)
+	if isCheck {
+		value += 5
+	}
+
+	if isDoubleCheck {
+		value += 5
+	}
+
+	return
 }

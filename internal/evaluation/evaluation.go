@@ -63,33 +63,6 @@ func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	return best
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-type CompFunc func(float32, float32) float32
-type SelectiveCompFunc func(float32, float32, float32) (float32, float32)
-type CompFuncBool func(float32, float32, float32) bool
-
-func gte(x, a, b float32) bool {
-	return x >= b
-}
-
-func lte(x, a, b float32) bool {
-	return x <= a
-}
-
-func minB(x, a, b float32) (float32, float32) {
-	return a, Min32(x, b)
-}
-
-func maxA(x, a, b float32) (float32, float32) {
-	return Max32(x, a), b
-}
-
 func Max32(a, b float32) float32 {
 	if a > b {
 		return a
