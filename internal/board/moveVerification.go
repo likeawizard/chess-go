@@ -144,6 +144,25 @@ func (b *Board) IsInCheck(isWhite bool) bool {
 	return b.IsThretened(isWhite, king)
 }
 
+// Determine if side is in check and double check
+func (b *Board) IsCheck(isWhite bool, move Move) (isCheck bool, isDoubleCheck bool) {
+	to := move.To()
+	tempPiece := b.Coords[to]
+	back := move.Reverse()
+	b.move(move)
+	defer func() {
+		b.move(back)
+		b.Coords[to] = tempPiece
+	}()
+
+	checks := b.GetChecks(!isWhite)
+	isCheck = len(checks) != 0
+	isDoubleCheck = len(checks) == 2
+
+	return
+
+}
+
 func (b *Board) GetPawnMoves(c Square, pin, check Move) (moves, captures []Move) {
 	var target Square
 	isWhite := b.Coords[c] <= PieceOffset
