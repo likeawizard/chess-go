@@ -56,8 +56,16 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 
 func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	e.Evaluations = 0
+	var best board.Move
 	start := time.Now()
-	best := e.IDSearch(ctx, e.SearchDepth, negInf, posInf)
+	m, c := e.Board.GetLegalMoves()
+	all := append(m, c...)
+	if len(all) == 1 {
+		best = all[0]
+	} else {
+		best = e.IDSearch(ctx, e.SearchDepth, negInf, posInf)
+	}
+
 	e.MoveTime = time.Since(start)
 
 	return best
