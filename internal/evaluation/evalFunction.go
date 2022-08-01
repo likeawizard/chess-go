@@ -36,7 +36,7 @@ func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite 
 }
 
 func getPawnScore(b *board.Board, sq board.Square, isWhite bool) (value int) {
-	value = weights.Pieces.Pawn
+	value = 0
 	if IsProtected(b, sq, isWhite) {
 		value += weights.Pawn.Protected
 	}
