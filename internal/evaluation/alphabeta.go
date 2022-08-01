@@ -22,6 +22,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 			pv = pv[1:]
 		}
 		all := e.Board.OrderMoves(pvm, m, c)
+
 		if depth == 0 || len(all) == 0 {
 			return side * e.EvalFunction(e, e.Board), make([]board.Move, 0)
 		}
@@ -30,7 +31,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 		var movesVar []board.Move
 		var value int
 
-		value = math.MinInt
+		value = -math.MaxInt
 		move = all[0]
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MoveLongAlg(all[i])
@@ -47,20 +48,20 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 			if alpha >= beta {
 				break
 			}
-
 		}
 		return value, append([]board.Move{move}, movesVar...)
 	}
 }
 
-func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta int) board.Move {
+func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 	var wg sync.WaitGroup
 	var best board.Move
 	var eval int
 	pv := make([]board.Move, depth)
-	color := -1
-	if e.Board.IsWhite {
-		color = 1
+	color := 1
+	alpha, beta := -math.MaxInt, math.MaxInt
+	if !e.Board.IsWhite {
+		color = -color
 	}
 	done := false
 	wg.Add(1)
@@ -71,7 +72,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta int) b
 				return
 			}
 
-			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, math.MinInt, math.MaxInt, color)
+			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, alpha, beta, color)
 
 			if len(tempMove) == 0 {
 				break
@@ -88,7 +89,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta int) b
 				pv = tempMove
 				fmt.Printf("Depth: %d (%2.2f) Move: %v\n", d, float32(eval)/100, tempMove)
 				//found mate stop
-				if tempEval == math.MaxInt || tempEval == math.MinInt {
+				if tempEval == math.MaxInt || tempEval == -math.MaxInt {
 					done = true
 				}
 			}

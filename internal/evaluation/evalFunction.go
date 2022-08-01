@@ -16,6 +16,7 @@ func init() {
 		fmt.Println("Unable to load weights")
 		panic(1)
 	}
+	fmt.Printf("%+v\n", weights)
 }
 
 var (
@@ -219,7 +220,7 @@ func GetEvaluation(e *EvalEngine, b *board.Board) int {
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
 		if b.IsWhite {
-			return math.MinInt
+			return -math.MaxInt
 		} else {
 			return math.MaxInt
 		}
@@ -232,6 +233,7 @@ func GetEvaluation(e *EvalEngine, b *board.Board) int {
 	blackPieces := b.GetPieces(false)
 	var eval, pieceEval int = 0, 0
 
+	// TODO: ensure no move gen is dependent on b.IsWhite internally
 	isWhite := b.IsWhite
 	b.IsWhite = true
 	for _, piece := range whitePieces {

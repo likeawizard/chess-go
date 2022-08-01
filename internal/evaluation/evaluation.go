@@ -2,7 +2,6 @@ package eval
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -64,7 +63,7 @@ func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	if len(all) == 1 {
 		best = all[0]
 	} else {
-		best = e.IDSearch(ctx, e.SearchDepth, math.MinInt, math.MaxInt)
+		best = e.IDSearch(ctx, e.SearchDepth)
 	}
 
 	e.MoveTime = time.Since(start)
