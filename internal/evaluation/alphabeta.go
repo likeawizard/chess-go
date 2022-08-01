@@ -3,12 +3,13 @@ package eval
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, depth int, alpha, beta float32, side float32) (float32, []board.Move) {
+func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, depth int, alpha, beta int, side int) (int, []board.Move) {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
@@ -27,9 +28,9 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 
 		var move board.Move
 		var movesVar []board.Move
-		var value float32
+		var value int
 
-		value = negInf
+		value = math.MinInt
 		move = all[0]
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MoveLongAlg(all[i])
@@ -41,7 +42,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 				movesVar = tempMoves
 			}
 			umove()
-			alpha = Max32(alpha, value)
+			alpha = Max(alpha, value)
 
 			if alpha >= beta {
 				break
@@ -52,16 +53,14 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 	}
 }
 
-func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float32) board.Move {
+func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta int) board.Move {
 	var wg sync.WaitGroup
 	var best board.Move
-	var eval float32
+	var eval int
 	pv := make([]board.Move, depth)
-	color, alpha, beta := float32(-1), posInf, negInf
+	color := -1
 	if e.Board.IsWhite {
 		color = 1
-		alpha = negInf
-		beta = posInf
 	}
 	done := false
 	wg.Add(1)
@@ -70,10 +69,9 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			if done {
 				wg.Done()
 				return
-
 			}
 
-			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, negInf, posInf, color)
+			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, math.MinInt, math.MaxInt, color)
 
 			if len(tempMove) == 0 {
 				break
@@ -88,9 +86,9 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, alpha, beta float3
 			default:
 				eval, best = tempEval, tempMove[0]
 				pv = tempMove
-				fmt.Printf("Depth: %d (%2.2f) Move: %v\n", d, eval, tempMove)
+				fmt.Printf("Depth: %d (%2.2f) Move: %v\n", d, float32(eval)/100, tempMove)
 				//found mate stop
-				if tempEval == negInf || tempEval == posInf {
+				if tempEval == math.MaxInt || tempEval == math.MinInt {
 					done = true
 				}
 			}
