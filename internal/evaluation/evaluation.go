@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -26,8 +27,8 @@ type Node struct {
 	Parent     *Node
 	Children   []*Node
 }
-type SearchFunction func(n *Node, depth ...int) float32
-type EvalFunction func(*EvalEngine, *board.Board) float32
+type SearchFunction func(n *Node, depth ...int) int
+type EvalFunction func(*EvalEngine, *board.Board) int
 
 type EvalEngine struct {
 	Evaluations   int64
@@ -63,7 +64,7 @@ func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	if len(all) == 1 {
 		best = all[0]
 	} else {
-		best = e.IDSearch(ctx, e.SearchDepth, negInf, posInf)
+		best = e.IDSearch(ctx, e.SearchDepth, math.MinInt, math.MaxInt)
 	}
 
 	e.MoveTime = time.Since(start)
@@ -71,14 +72,14 @@ func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	return best
 }
 
-func Max32(a, b float32) float32 {
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func Min32(a, b float32) float32 {
+func Min(a, b int) int {
 	if a < b {
 		return a
 	}

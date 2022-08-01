@@ -1,32 +1,28 @@
 package eval
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-const (
-	moveWeight    float32 = 0.02
-	captureWeight float32 = 0.04
-)
+var weights *Weights
+
+func init() {
+	var err error
+	weights, err = LoadWeights()
+	if err != nil {
+		fmt.Println("Unable to load weights")
+		panic(1)
+	}
+}
 
 var (
-	negInf       float32 = -math.MaxFloat32
-	posInf       float32 = math.MaxFloat32
-	PieceWeights         = [12]float32{1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
+	PieceWeights = [12]float32{1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
 )
 
-const (
-	majorDiag      float32 = 0.2 //a1d8 && a8d1
-	minorDiag      float32 = 0.1 //a2g8 b1h7 && a7g1 b8h2
-	knightCenter22 float32 = 0.3
-	knightCenter44 float32 = 0.2
-	knightOuterRim float32 = -0.2
-	knightInnerRim float32 = -0.05
-)
-
-func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite bool) float32 {
+func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite bool) int {
 	switch piece {
 	case board.P, board.P + 6:
 		return getPawnScore(b, c, isWhite)
@@ -39,35 +35,26 @@ func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite 
 	}
 }
 
-const (
-	isolated      float32 = -0.2
-	doubled       float32 = -0.2
-	protected     float32 = 0.3
-	passedPerRank float32 = 0.1
-)
-
-func getPawnScore(b *board.Board, sq board.Square, isWhite bool) (value float32) {
-	value = 1
+func getPawnScore(b *board.Board, sq board.Square, isWhite bool) (value int) {
+	value = weights.Pieces.Pawn
 	if IsProtected(b, sq, isWhite) {
-		value += 0.1
+		value += weights.Pawn.Protected
 	}
 	if IsDoubled(b, sq, isWhite) {
-		value -= 0.2
+		value += weights.Pawn.Doubled
 	}
 
 	if IsIsolated(b, sq, isWhite) {
-		value -= 0.1
+		value += weights.Pawn.Isolated
 	}
-	advancmentValue := float32(0.075)
+	advancmentValue := weights.Pawn.Advance
 	if IsPassed(b, sq, isWhite) {
-		advancmentValue = 0.11
+		advancmentValue += weights.Pawn.Passed
 	}
 
-	if getCentralPawn(sq) {
-		value += 0.3
-	}
+	value += getCentralPawn(sq)
 
-	value += advancmentValue * float32(getPawnAdvancement(sq, isWhite))
+	value += advancmentValue * getPawnAdvancement(sq, isWhite)
 
 	return
 }
@@ -154,74 +141,77 @@ func IsPassed(b *board.Board, sq board.Square, isWhite bool) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
-func getPawnAdvancement(c board.Square, isWhite bool) board.Square {
+func getPawnAdvancement(c board.Square, isWhite bool) int {
 	if isWhite {
-		return c/8 - 1
+		return int(c/8 - 1)
 	} else {
-		return 6 - c/8
+		return int(6 - c/8)
 	}
 }
 
-func getCentralPawn(c board.Square) bool {
-	switch c {
-	case 27, 28, 35, 36:
-		return true
+func getCentralPawn(sq board.Square) int {
+	switch {
+	case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
+		return weights.Pawn.Center22
+	case (sq/8 == 2 || sq/8 == 5) && (sq%8 == 2 || sq%8 == 5):
+		return weights.Pawn.Center44
 	default:
-		return false
+		return 0
 	}
 }
 
-func getKnightPositionScore(c board.Square) float32 {
-	switch c {
-	case 27, 28, 35, 36:
-		return knightCenter22
-	case 42, 43, 44, 45, 34, 37, 26, 29, 18, 19, 20, 21:
-		return knightCenter44
-	case 49, 50, 51, 52, 53, 54, 9, 10, 11, 12, 13, 14, 41, 33, 25, 17, 46, 38, 30, 22:
-		return knightInnerRim
+func getKnightPositionScore(sq board.Square) int {
+	switch {
+	case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
+		return weights.Knight.Center22
+	case (sq/8 == 2 || sq/8 == 5) && (sq%8 == 2 || sq%8 == 5):
+		return weights.Knight.Center44
+	case (sq/8 == 1 || sq/8 == 6) && (sq%8 == 1 || sq%8 == 6):
+		return weights.Knight.InnerRim
 	default:
-		return knightOuterRim
+		return weights.Knight.OuterRim
 	}
 
 }
 
-func getMajorDiagScoreUR(c board.Square) float32 {
+func getMajorDiagScoreUR(c board.Square) int {
 	if c%9 == 0 {
-		return majorDiag
+		return weights.Bishop.MajorDiag
 	}
 	return 0
 }
 
-func getMajorDiagScoreDR(c board.Square) float32 {
+func getMajorDiagScoreDR(c board.Square) int {
 	if c%7 == 0 {
-		return majorDiag
+		return weights.Bishop.MajorDiag
 	}
 	return 0
 }
 
-func getMinoDiagScoreUR(c board.Square) float32 {
+func getMinoDiagScoreUR(c board.Square) int {
 	if c%9 == 1 || c%9 == 8 {
-		return minorDiag
+		return weights.Bishop.MinorDiag
 	}
 	return 0
 }
 
-func getMinorDiagScoreDR(c board.Square) float32 {
+func getMinorDiagScoreDR(c board.Square) int {
 	if c%7 == 6 || c%7 == 1 {
-		return minorDiag
+		return weights.Bishop.MinorDiag
 	}
 
 	return 0
 }
 
-func getBishopDiagScore(c board.Square) float32 {
+func getBishopDiagScore(c board.Square) int {
 	return getMajorDiagScoreDR(c) + getMajorDiagScoreUR(c) + getMinoDiagScoreUR(c) + getMinorDiagScoreDR(c)
 }
 
-func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
+func GetEvaluation(e *EvalEngine, b *board.Board) int {
 	inCheck := b.IsInCheck(b.IsWhite)
 	m, c := b.GetLegalMoves()
 	all := append(m, c...)
@@ -229,9 +219,9 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
 		if b.IsWhite {
-			return negInf
+			return math.MinInt
 		} else {
-			return posInf
+			return math.MaxInt
 		}
 		//Stale mate = 0 score
 	} else if len(all) == 0 {
@@ -240,24 +230,27 @@ func GetEvaluation(e *EvalEngine, b *board.Board) float32 {
 
 	whitePieces := b.GetPieces(true)
 	blackPieces := b.GetPieces(false)
-	var eval, pieceEval float32 = 0, 0
+	var eval, pieceEval int = 0, 0
+
+	isWhite := b.IsWhite
+	b.IsWhite = true
 	for _, piece := range whitePieces {
-		pieceType := b.Coords[piece]
-		baseWeight := PieceWeights[b.Coords[piece]-1]
+		pieceVal := b.Coords[piece]
 		// TODO: eval for pinned pieces?
 		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = baseWeight + float32(len(moves))*moveWeight + float32(len(captures))*captureWeight + getPieceSpecificScore(b, pieceType, piece, true)
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + len(captures)*weights.Moves.Capture + getPieceSpecificScore(b, pieceVal, piece, true)
 		eval += pieceEval
 	}
 
+	b.IsWhite = false
 	for _, piece := range blackPieces {
-		pieceType := b.Coords[piece]
-		baseWeight := PieceWeights[b.Coords[piece]-1]
+		pieceVal := b.Coords[piece]
 		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = baseWeight - float32(len(moves))*moveWeight - float32(len(captures))*captureWeight - getPieceSpecificScore(b, pieceType, piece, false)
-		eval += pieceEval
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + len(captures)*weights.Moves.Capture + getPieceSpecificScore(b, pieceVal, piece, false)
+		eval -= pieceEval
 	}
 
+	b.IsWhite = isWhite
 	e.Evaluations++
 	return eval
 }
