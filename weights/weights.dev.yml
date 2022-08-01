@@ -1,6 +1,6 @@
 pieces:
   pawn: 100
-  knigh: 290
+  knight: 290
   bishop: 320
   rook: 500
   queen: 900
