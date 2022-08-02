@@ -18,13 +18,13 @@ var containsError bool
 func main() {
 	depth := 4
 	start := time.Now()
-	// board.PerftDebug("r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 1", depth)
-	perft1(depth)
-	perft2(depth)
-	perft3(depth)
-	perft4(depth)
-	perft5(depth)
-	perft6(depth)
+	board.PerftDebug("r4rk1/p1ppqNb1/bn2pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQ - 1 2", depth)
+	// perft1(depth)
+	// perft2(depth)
+	// perft3(depth)
+	// perft4(depth)
+	// perft5(depth)
+	// perft6(depth)
 
 	fmt.Printf("\nRun time: %v\n", time.Since(start))
 	if !containsError {
@@ -67,6 +67,7 @@ func perft1(depth int) {
 	test(fen, depth, tests)
 }
 
+//TODO: at depth 6 exist 1 moves e5f7 f3h3 f3h5 lead to one extra position each. difference disappears after exploring them to depth 4
 func perft2(depth int) {
 	fen := "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
 	tests := []perftTest{
