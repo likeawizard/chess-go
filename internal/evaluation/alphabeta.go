@@ -92,7 +92,6 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 	if !e.Board.IsWhite {
 		color = -color
 	}
-	e.TTable = make(map[uint64]ttEntry)
 	done := false
 	wg.Add(1)
 	go func() {
@@ -101,6 +100,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 				wg.Done()
 				return
 			}
+			e.TTable = make(map[uint64]ttEntry)
 			TTHits = 0
 			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, alpha, beta, color)
 

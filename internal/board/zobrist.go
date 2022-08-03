@@ -60,7 +60,6 @@ func (b *Board) ZobristSimpleMove(move Move) {
 	}
 
 	b.Hash ^= pieceKeys[start][to]
-	// unset moved piece and replace with empty
 	b.Hash ^= pieceKeys[start][from]
 }
 
@@ -115,9 +114,7 @@ func (b *Board) ZobristPromotion(move Move) {
 
 	// set destination with newly promoted piece
 	b.Hash ^= pieceKeys[promotion][to]
-	b.Hash ^= pieceKeys[finish][from]
 	b.Hash ^= pieceKeys[start][from]
-
 }
 
 func (b *Board) ZobristEnPassant(square Square) {

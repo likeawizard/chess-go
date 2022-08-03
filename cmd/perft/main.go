@@ -18,13 +18,13 @@ var containsError bool
 func main() {
 	depth := 4
 	start := time.Now()
-	board.PerftDebug("r4rk1/p1ppqNb1/bn2pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQ - 1 2", depth)
-	// perft1(depth)
-	// perft2(depth)
-	// perft3(depth)
-	// perft4(depth)
-	// perft5(depth)
-	// perft6(depth)
+	//board.PerftDebug("r4rk1/p1ppqNb1/bn2pnp1/3P4/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQ - 1 2", depth)
+	perft1(depth)
+	perft2(depth)
+	perft3(depth)
+	perft4(depth)
+	perft5(depth)
+	perft6(depth)
 
 	fmt.Printf("\nRun time: %v\n", time.Since(start))
 	if !containsError {
