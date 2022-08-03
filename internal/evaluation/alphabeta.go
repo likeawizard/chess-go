@@ -89,11 +89,21 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0
 	default:
+		eval := side * e.EvalFunction(e, e.Board)
+
+		if eval >= beta {
+			return beta
+		}
+
+		if eval > alpha {
+			alpha = eval
+		}
+
 		_, c := e.Board.GetLegalMoves()
 		pvm := board.Move(0)
 		all := e.Board.OrderMoves(pvm, nil, c)
-		eval := side * e.EvalFunction(e, e.Board)
-		if len(all) == 0 || eval >= beta {
+
+		if len(all) == 0 {
 			return eval
 		}
 
