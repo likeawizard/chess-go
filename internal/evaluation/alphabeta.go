@@ -11,12 +11,16 @@ import (
 
 var TTHits int
 
-func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, depth int, alpha, beta int, side int) (int, []board.Move) {
+func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int, alpha, beta int, side int) int {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
-		return 0, nil
+		return 0
 	default:
+		if depth == 0 {
+			return e.quiescence(ctx, alpha, beta, side)
+		}
+
 		alphaTemp := alpha
 		if e.EnableTT {
 
@@ -24,7 +28,7 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 				TTHits++
 				switch entry.ttType {
 				case TT_EXACT:
-					return entry.eval, make([]board.Move, 0)
+					return entry.eval
 				case TT_LOWER:
 					alpha = Max(alpha, entry.eval)
 				case TT_UPPER:
@@ -32,40 +36,32 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 				}
 
 				if alpha >= beta {
-					return entry.eval, make([]board.Move, 0)
+					return entry.eval
 				}
 			}
 		}
 
 		m, c := e.Board.GetLegalMoves()
-		pvm := board.Move(0)
-		if len(pv) > 0 {
-			pvm = pv[0]
-			pv = pv[1:]
-		}
-		all := e.Board.OrderMoves(pvm, m, c)
+		all := e.Board.OrderMoves(0, m, c)
 
-		if depth == 0 || len(all) == 0 {
-			return side * e.EvalFunction(e, e.Board), make([]board.Move, 0)
+		if len(all) == 0 {
+			return side * e.EvalFunction(e, e.Board)
 		}
 
-		var move board.Move
-		var movesVar []board.Move
 		var value int
 
 		value = -math.MaxInt
-		move = all[0]
+		pv := []board.Move{}
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MoveLongAlg(all[i])
-			temp, tempMoves := e.alphabetaWithTimeout(ctx, pv, depth-1, -beta, -alpha, -side)
-			temp = -temp
-			if temp > value {
-				value = temp
-				move = all[i]
-				movesVar = tempMoves
-			}
+			value = Max(value, -e.negamax(ctx, &pv, depth-1, -beta, -alpha, -side))
 			umove()
-			alpha = Max(alpha, value)
+
+			if value > alpha {
+				alpha = value
+				*line = []board.Move{all[i]}
+				*line = append(*line, pv...)
+			}
 
 			if alpha >= beta {
 				break
@@ -83,7 +79,47 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 				e.TTable[e.Board.Hash] = tt
 			}
 		}
-		return value, append([]board.Move{move}, movesVar...)
+		return value
+	}
+}
+
+func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) int {
+	select {
+	case <-ctx.Done():
+		// Meaningless return. Should never trust the result after ctx is expired
+		return 0
+	default:
+		eval := side * e.EvalFunction(e, e.Board)
+
+		if eval >= beta {
+			return beta
+		}
+
+		if eval > alpha {
+			alpha = eval
+		}
+
+		_, c := e.Board.GetLegalMoves()
+		pvm := board.Move(0)
+		all := e.Board.OrderMoves(pvm, nil, c)
+
+		if len(all) == 0 {
+			return eval
+		}
+
+		var value int
+
+		value = -math.MaxInt
+		for i := 0; i < len(all); i++ {
+			umove := e.Board.MoveLongAlg(all[i])
+			value = Max(value, -e.quiescence(ctx, -beta, -alpha, -side))
+			umove()
+			alpha = Max(value, alpha)
+			if alpha >= beta {
+				break
+			}
+		}
+		return value
 	}
 }
 
@@ -91,7 +127,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 	var wg sync.WaitGroup
 	var best board.Move
 	var eval int
-	pv := make([]board.Move, depth)
+	var line []board.Move
 	color := 1
 	alpha, beta := -math.MaxInt, math.MaxInt
 	if !e.Board.IsWhite {
@@ -107,11 +143,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 			}
 			e.TTable = make(map[uint64]ttEntry)
 			TTHits = 0
-			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, alpha, beta, color)
-
-			if len(tempMove) == 0 {
-				break
-			}
+			eval = e.negamax(ctx, &line, d, alpha, beta, color)
 
 			select {
 			case <-ctx.Done():
@@ -125,11 +157,20 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 					fmt.Println("TTable error - transposition in less than 4ply")
 					panic(1)
 				}
-				eval, best = tempEval, tempMove[0]
-				pv = tempMove
-				fmt.Printf("Depth: %d (%2.2f) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, float32(color*eval)/100, tempMove, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
+				best = line[0]
+				evalStr := ""
+				switch eval {
+				case math.MaxInt:
+					evalStr = fmt.Sprintf("#%d", len(line))
+				case -math.MaxInt:
+					evalStr = fmt.Sprintf("#%d", len(line))
+				default:
+					evalStr = fmt.Sprintf("%2.2f", float32(color*eval)/100)
+				}
+
+				fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
 				//found mate stop
-				if tempEval == math.MaxInt || tempEval == -math.MaxInt {
+				if eval == math.MaxInt || eval == -math.MaxInt {
 					done = true
 				}
 			}
