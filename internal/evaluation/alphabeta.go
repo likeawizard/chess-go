@@ -41,8 +41,8 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int,
 			}
 		}
 
-		m, c := e.Board.GetLegalMoves()
-		all := e.Board.OrderMoves(0, m, c)
+		all := e.Board.GetLegalMoves()
+		all = e.Board.OrderMoves(0, all)
 
 		if len(all) == 0 {
 			return side * e.EvalFunction(e, e.Board)
@@ -99,9 +99,9 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 			alpha = eval
 		}
 
-		_, c := e.Board.GetLegalMoves()
+		all := e.Board.GetCaptures()
 		pvm := board.Move(0)
-		all := e.Board.OrderMoves(pvm, nil, c)
+		all = e.Board.OrderMoves(pvm, all)
 
 		if len(all) == 0 {
 			return eval

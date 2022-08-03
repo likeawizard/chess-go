@@ -18,8 +18,7 @@ func traverse(b *Board, depth int) int {
 	if depth == 0 {
 		return 1
 	} else {
-		m, c := b.GetLegalMoves()
-		all := append(m, c...)
+		all := b.GetLegalMoves()
 		for i := 0; i < len(all); i++ {
 			umove := b.MoveLongAlg(all[i])
 			num += traverse(b, depth-1)
@@ -32,8 +31,8 @@ func traverse(b *Board, depth int) int {
 func PerftDebug(fen string, depth int) {
 	b := &Board{}
 	b.ImportFEN(fen)
-	m, c := b.GetLegalMoves()
-	all := append(m, c...)
+	all := b.GetLegalMoves()
+
 	nodesSearched := 0
 	for _, move := range all {
 		unmove := b.MoveLongAlg(move)

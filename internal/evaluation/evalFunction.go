@@ -214,8 +214,7 @@ func getBishopDiagScore(c board.Square) int {
 
 func GetEvaluation(e *EvalEngine, b *board.Board) int {
 	inCheck := b.IsInCheck(b.IsWhite)
-	m, c := b.GetLegalMoves()
-	all := append(m, c...)
+	all := b.GetLegalMoves()
 
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
@@ -239,16 +238,16 @@ func GetEvaluation(e *EvalEngine, b *board.Board) int {
 	for _, piece := range whitePieces {
 		pieceVal := b.Coords[piece]
 		// TODO: eval for pinned pieces?
-		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + len(captures)*weights.Moves.Capture + getPieceSpecificScore(b, pieceVal, piece, true)
+		moves := b.GetMovesForPiece(piece, 0, 0)
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, true)
 		eval += pieceEval
 	}
 
 	b.IsWhite = false
 	for _, piece := range blackPieces {
 		pieceVal := b.Coords[piece]
-		moves, captures := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + len(captures)*weights.Moves.Capture + getPieceSpecificScore(b, pieceVal, piece, false)
+		moves := b.GetMovesForPiece(piece, 0, 0)
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, false)
 		eval -= pieceEval
 	}
 
