@@ -104,12 +104,10 @@ func getPin(sq Square, pins []Move) Move {
 	return 0
 }
 
-func (b *Board) OrderMoves(pv Move, moves []Move) []Move {
-	sort.Slice(moves, func(i int, j int) bool {
-		return moves[i] == pv || b.getMoveValue(moves[i]) > b.getMoveValue(moves[j])
+func (b *Board) OrderMoves(pv Move, moves *[]Move) {
+	sort.Slice(*moves, func(i int, j int) bool {
+		return (*moves)[i] == pv || b.getMoveValue((*moves)[i]) > b.getMoveValue((*moves)[j])
 	})
-
-	return moves
 }
 
 var PieceWeights = [13]float32{0, 1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}

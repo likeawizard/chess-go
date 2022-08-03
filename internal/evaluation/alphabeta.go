@@ -11,7 +11,7 @@ import (
 
 var TTHits int
 
-func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int, alpha, beta int, side int) int {
+func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []board.Move, depth int, alpha, beta int, side int) int {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
@@ -36,13 +36,20 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int,
 				}
 
 				if alpha >= beta {
+					*line = []board.Move{entry.move}
 					return entry.eval
 				}
 			}
 		}
 
+		var pvMove board.Move
+		if len(pvMoves) != 0 {
+			pvMove = pvMoves[0]
+			pvMoves = pvMoves[1:]
+		}
+
 		all := e.Board.GetLegalMoves()
-		all = e.Board.OrderMoves(0, all)
+		e.Board.OrderMoves(pvMove, &all)
 
 		if len(all) == 0 {
 			return side * e.EvalFunction(e, e.Board)
@@ -54,7 +61,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int,
 		pv := []board.Move{}
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MoveLongAlg(all[i])
-			value = Max(value, -e.negamax(ctx, &pv, depth-1, -beta, -alpha, -side))
+			value = Max(value, -e.negamax(ctx, &pv, pvMoves, depth-1, -beta, -alpha, -side))
 			umove()
 
 			if value > alpha {
@@ -68,7 +75,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth int,
 			}
 
 			if e.EnableTT {
-				tt := ttEntry{eval: value, depth: depth}
+				tt := ttEntry{eval: value, depth: depth, move: all[i]}
 				if value <= alphaTemp {
 					tt.ttType = TT_UPPER
 				} else if value >= beta {
@@ -101,7 +108,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 
 		all := e.Board.GetCaptures()
 		pvm := board.Move(0)
-		all = e.Board.OrderMoves(pvm, all)
+		e.Board.OrderMoves(pvm, &all)
 
 		if len(all) == 0 {
 			return eval
@@ -143,7 +150,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 			}
 			e.TTable = make(map[uint64]ttEntry)
 			TTHits = 0
-			eval = e.negamax(ctx, &line, d, alpha, beta, color)
+			eval = e.negamax(ctx, &line, line, d, alpha, beta, color)
 
 			select {
 			case <-ctx.Done():

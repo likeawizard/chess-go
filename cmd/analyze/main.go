@@ -31,9 +31,10 @@ func main() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500*1000)
+	start := time.Now()
 	move := e.GetMove(ctx)
 	defer cancel()
 	b.MoveLongAlg(move)
-	fmt.Println(move)
+	fmt.Println(move, time.Since(start))
 }
