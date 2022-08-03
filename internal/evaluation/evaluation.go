@@ -37,7 +37,7 @@ type EvalEngine struct {
 	Board         *board.Board
 	DebugMode     bool
 	SearchDepth   int
-	TTable        map[uint64]float32
+	TTable        map[uint64]ttEntry
 	MaxGoroutines chan struct{}
 	Algorithm     string
 }
@@ -50,7 +50,7 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 		SearchDepth:   c.Engine.MaxDepth,
 		MaxGoroutines: make(chan struct{}, c.Engine.MaxGoRoutines),
 		Algorithm:     c.Engine.Algorithm,
-		TTable:        make(map[uint64]float32),
+		TTable:        make(map[uint64]ttEntry),
 	}, nil
 }
 

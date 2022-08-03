@@ -113,15 +113,5 @@ func (b *Board) getMoveValue(move Move) (value float32) {
 		value += 3
 	}
 
-	// Prioritize moves with check and double check
-	isCheck, isDoubleCheck := b.IsCheck(b.IsWhite, move)
-	if isCheck {
-		value += 5
-	}
-
-	if isDoubleCheck {
-		value += 5
-	}
-
 	return
 }

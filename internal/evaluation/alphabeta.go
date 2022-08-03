@@ -9,12 +9,31 @@ import (
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
+var TTHits int
+
 func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, depth int, alpha, beta int, side int) (int, []board.Move) {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0, nil
 	default:
+		alphaTemp := alpha
+
+		if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
+			TTHits++
+			switch entry.ttType {
+			case TT_EXACT:
+				return entry.eval, make([]board.Move, 0)
+			case TT_LOWER:
+				alpha = Max(alpha, entry.eval)
+			case TT_UPPER:
+				beta = Min(beta, entry.eval)
+			}
+
+			if alpha >= beta {
+				return entry.eval, make([]board.Move, 0)
+			}
+		}
 		m, c := e.Board.GetLegalMoves()
 		pvm := board.Move(0)
 		if len(pv) > 0 {
@@ -48,6 +67,16 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 			if alpha >= beta {
 				break
 			}
+
+			tt := ttEntry{eval: value, depth: depth}
+			if value <= alphaTemp {
+				tt.ttType = TT_UPPER
+			} else if value >= beta {
+				tt.ttType = TT_LOWER
+			} else {
+				tt.ttType = TT_EXACT
+			}
+			e.TTable[e.Board.Hash] = tt
 		}
 		return value, append([]board.Move{move}, movesVar...)
 	}
@@ -63,6 +92,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 	if !e.Board.IsWhite {
 		color = -color
 	}
+	e.TTable = make(map[uint64]ttEntry)
 	done := false
 	wg.Add(1)
 	go func() {
@@ -71,7 +101,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 				wg.Done()
 				return
 			}
-
+			TTHits = 0
 			tempEval, tempMove := e.alphabetaWithTimeout(ctx, pv, d, alpha, beta, color)
 
 			if len(tempMove) == 0 {
@@ -85,9 +115,14 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 				wg.Done()
 				return
 			default:
+				// Debug purposes. No TTHit can happen under 4ply.
+				if depth < 4 && TTHits > 0 {
+					fmt.Println("TTable error - transposition in less than 4ply")
+					panic(1)
+				}
 				eval, best = tempEval, tempMove[0]
 				pv = tempMove
-				fmt.Printf("Depth: %d (%2.2f) Move: %v\n", d, float32(eval)/100, tempMove)
+				fmt.Printf("Depth: %d (%2.2f) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, float32(color*eval)/100, tempMove, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
 				//found mate stop
 				if tempEval == math.MaxInt || tempEval == -math.MaxInt {
 					done = true
