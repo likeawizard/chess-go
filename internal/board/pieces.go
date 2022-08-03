@@ -71,7 +71,7 @@ func (b *Board) GetCaptures() (captures []Move) {
 }
 
 // Generate all legal moves for side to move
-func (b *Board) GetLegalMoves() (moves, captures []Move) {
+func (b *Board) GetLegalMoves() (moves []Move) {
 	pins := b.GetPins(b.IsWhite)
 	_ = pins
 
@@ -89,9 +89,7 @@ func (b *Board) GetLegalMoves() (moves, captures []Move) {
 		pieces := b.GetPieces(b.IsWhite)
 		for _, piece := range pieces {
 			pin := getPin(piece, pins)
-			m, c := b.GetMovesForPiece(piece, pin, check)
-			moves = append(moves, m...)
-			captures = append(captures, c...)
+			moves = append(moves, b.GetMovesForPiece(piece, pin, check)...)
 		}
 		return
 	}
@@ -106,14 +104,12 @@ func getPin(sq Square, pins []Move) Move {
 	return 0
 }
 
-func (b *Board) OrderMoves(pv Move, moves, captures []Move) []Move {
-	all := append(captures, moves...)
-
-	sort.Slice(all, func(i int, j int) bool {
-		return all[i] == pv || b.getMoveValue(all[i]) > b.getMoveValue(all[j])
+func (b *Board) OrderMoves(pv Move, moves []Move) []Move {
+	sort.Slice(moves, func(i int, j int) bool {
+		return moves[i] == pv || b.getMoveValue(moves[i]) > b.getMoveValue(moves[j])
 	})
 
-	return all
+	return moves
 }
 
 var PieceWeights = [13]float32{0, 1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
