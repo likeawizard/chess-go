@@ -139,6 +139,32 @@ func (b *Board) GetMovesForPiece(c Square, pin Move, check Move) (availableMoves
 	}
 }
 
+func (b *Board) GetCapturesForPiece(c Square, pin Move, check Move) (captures []Move) {
+	piece := b.Coords[c] % PieceOffset
+
+	switch piece {
+	case P:
+		return b.GetPawnCaptures(c, pin, check)
+	case B:
+		return b.GetBishopCaptures(c, pin, check)
+	case N:
+		// pinned knights can't unpin themselves
+		if pin != 0 {
+			return
+		}
+		return b.GetKnightCaptures(c, check)
+	case R:
+		return b.GetRookCaptures(c, pin, check)
+	case Q:
+		return b.GetQueenCaptures(c, pin, check)
+	case 0:
+		// King%6 == 0. Will fail if square is empty
+		return b.GetKingCaptures(c)
+	default:
+		return
+	}
+}
+
 func (b *Board) IsInCheck(isWhite bool) bool {
 	king := b.GetKing(isWhite)
 	return b.IsThretened(isWhite, king)
@@ -229,6 +255,62 @@ func (b *Board) GetPawnMoves(c Square, pin, check Move) (moves, captures []Move)
 
 	if hasPromotion {
 		moves, captures = b.addPawnPromotion(moves, captures)
+	}
+
+	return
+}
+
+func (b *Board) GetPawnCaptures(c Square, pin, check Move) (captures []Move) {
+	var target Square
+	isWhite := b.Coords[c] <= PieceOffset
+	var direction = Square(8)
+	hasPromotion := false
+	pinnedDirections := GetCompassPinned(pin)
+	westPin := pinnedDirections[4]
+	eastPin := pinnedDirections[5]
+	_ = westPin
+	_ = eastPin
+
+	if !isWhite {
+		direction = -8
+		westPin = pinnedDirections[6]
+		eastPin = pinnedDirections[7]
+	}
+
+	target = c + direction + 1
+	if eastPin && c%8 != 7 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+		captures = append(captures, MoveFromSquares(c, target))
+		if target < 15 || target > 55 {
+			hasPromotion = true
+		}
+	}
+	target = c + direction - 1
+	if westPin && c%8 != 0 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+		captures = append(captures, MoveFromSquares(c, target))
+		if target < 15 || target > 55 {
+			hasPromotion = true
+		}
+	}
+
+	if (c/8 == 3 || c/8 == 4) && b.EnPassantTarget != -1 {
+		target = c + direction + 1
+		if c%8 != 7 && target == b.EnPassantTarget {
+			// TODO: lazy but safe. Space for improvement
+			if !b.IsInCheckAfterMove(MoveFromSquares(c, target)) {
+				captures = append(captures, MoveFromSquares(c, target))
+			}
+		}
+		target = c + direction - 1
+		if c%8 != 0 && target == b.EnPassantTarget {
+			if !b.IsInCheckAfterMove(MoveFromSquares(c, target)) {
+				captures = append(captures, MoveFromSquares(c, target))
+			}
+		}
+
+	}
+
+	if hasPromotion {
+		_, captures = b.addPawnPromotion(nil, captures)
 	}
 
 	return
@@ -329,6 +411,45 @@ func (b *Board) GetSlidingMoves(c Square, mode SlideMode, pin Move, check Move) 
 	return
 }
 
+func (b *Board) GetSlidingCaptures(c Square, mode SlideMode, pin Move, check Move) (captures []Move) {
+	var target Square
+
+	compassMin, compassMax := 0, 8
+	switch mode {
+	case BISHOP:
+		compassMin = 4
+	case ROOK:
+		compassMax = 4
+	}
+
+	pinnedDirections := GetCompassPinned(pin)
+
+	for dirIdx := compassMin; dirIdx < compassMax; dirIdx++ {
+		if !pinnedDirections[dirIdx] {
+			continue
+		}
+		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
+			target = c + i*compass[dirIdx]
+
+			// Stop if hits own piece
+			if b.Coords[target] != 0 && !b.isOpponentPiece(b.IsWhite, target) {
+				break
+			}
+			preventsCheck := b.PreventsCheck(target, check)
+
+			// If hits opponent piece stop and add capture if prevents check
+			if b.isOpponentPiece(b.IsWhite, target) {
+				if preventsCheck {
+					captures = append(captures, MoveFromSquares(c, target))
+				}
+				break
+			}
+		}
+	}
+
+	return
+}
+
 func (b *Board) GetBishopMoves(c Square, pin, check Move) (moves, captures []Move) {
 	return b.GetSlidingMoves(c, BISHOP, pin, check)
 }
@@ -339,6 +460,18 @@ func (b *Board) GetRookMoves(c Square, pin, check Move) (moves, captures []Move)
 
 func (b *Board) GetQueenMoves(c Square, pin, check Move) (moves, captures []Move) {
 	return b.GetSlidingMoves(c, QUEEN, pin, check)
+}
+
+func (b *Board) GetBishopCaptures(c Square, pin, check Move) (captures []Move) {
+	return b.GetSlidingCaptures(c, BISHOP, pin, check)
+}
+
+func (b *Board) GetRookCaptures(c Square, pin, check Move) (captures []Move) {
+	return b.GetSlidingCaptures(c, ROOK, pin, check)
+}
+
+func (b *Board) GetQueenCaptures(c Square, pin, check Move) (captures []Move) {
+	return b.GetSlidingCaptures(c, QUEEN, pin, check)
 }
 
 func (b *Board) GetKnightMoves(c Square, check Move) (moves, captures []Move) {
@@ -355,6 +488,37 @@ func (b *Board) GetKnightMoves(c Square, check Move) (moves, captures []Move) {
 		}
 	}
 
+	return
+}
+
+func (b *Board) GetKnightCaptures(c Square, check Move) (captures []Move) {
+	for _, knightMove := range knightMoves[c] {
+		if b.isOpponentPiece(b.IsWhite, knightMove) && b.PreventsCheck(knightMove, check) {
+			captures = append(captures, MoveFromSquares(c, knightMove))
+		}
+	}
+
+	return
+}
+
+func (b *Board) GetKingCaptures(c Square) (captures []Move) {
+	king := b.Coords[c]
+	// Temporarily remove king from board to prevent it blocking attacks against itself in escape direction
+	b.Coords[c] = 0
+	for i := 0; i < 8; i++ {
+		if compassBlock[c][i] == 0 {
+			continue
+		}
+
+		if b.IsThretened(b.IsWhite, c+compass[i]) {
+			continue
+		}
+
+		if b.isOpponentPiece(b.IsWhite, c+compass[i]) {
+			captures = append(captures, MoveFromSquares(c, c+compass[i]))
+		}
+	}
+	b.Coords[c] = king
 	return
 }
 

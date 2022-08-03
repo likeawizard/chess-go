@@ -44,6 +44,33 @@ func (b *Board) GetPieces(isWhite bool) (pieces []Square) {
 	return
 }
 
+// Generate only legal capture moves
+func (b *Board) GetCaptures() (captures []Move) {
+
+	pins := b.GetPins(b.IsWhite)
+	_ = pins
+
+	var checks []Move
+	check := Move(0)
+	if inCheck := b.IsInCheck(b.IsWhite); inCheck {
+		checks = b.GetChecks(b.IsWhite)
+		check = checks[0]
+	}
+
+	// If double-check only consider king moves
+	if len(checks) == 2 {
+		return b.GetCapturesForPiece(b.GetKing(b.IsWhite), 0, 0)
+	} else {
+		pieces := b.GetPieces(b.IsWhite)
+		for _, piece := range pieces {
+			pin := getPin(piece, pins)
+			captures = append(captures, b.GetCapturesForPiece(piece, pin, check)...)
+		}
+		return
+	}
+}
+
+// Generate all legal moves for side to move
 func (b *Board) GetLegalMoves() (moves, captures []Move) {
 	pins := b.GetPins(b.IsWhite)
 	_ = pins
