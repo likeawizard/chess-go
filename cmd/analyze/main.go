@@ -9,7 +9,6 @@ import (
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
-	"github.com/likeawizard/chess-go/internal/render"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -32,13 +31,9 @@ func main() {
 		return
 	}
 
-	r := render.New(cfg)
-	r.InitRender(b, e)
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*15*1000)
 	move := e.GetMove(ctx)
 	defer cancel()
 	b.MoveLongAlg(move)
 	fmt.Println(move)
-	r.Update(move)
 }

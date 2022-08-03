@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
-	"github.com/likeawizard/chess-go/internal/render"
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -25,9 +25,10 @@ func main() {
 		return
 	}
 	moves := make([]board.Move, 0)
-	r := render.New(cfg)
-	r.InitRender(b1, e)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10*1000)
 			// ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500*1000)
@@ -39,10 +40,11 @@ func main() {
 			}
 			b1.MoveLongAlg(move)
 			moves = append(moves, move)
+			fmt.Println("playing:", move.String())
 
 			b1.WritePGNToFile(b1.GeneratePGN(moves), "./dump.pgn")
-			r.Update(move)
 		}
+
 	}()
-	r.Run()
+	wg.Wait()
 }

@@ -2,7 +2,6 @@ package eval
 
 import (
 	"context"
-	"time"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -30,34 +29,28 @@ type SearchFunction func(n *Node, depth ...int) int
 type EvalFunction func(*EvalEngine, *board.Board) int
 
 type EvalEngine struct {
-	Evaluations   int64
-	CachedEvals   int64
-	EvalFunction  EvalFunction
-	MoveTime      time.Duration
-	Board         *board.Board
-	DebugMode     bool
-	SearchDepth   int
-	TTable        map[uint64]ttEntry
-	MaxGoroutines chan struct{}
-	Algorithm     string
+	Evaluations  int64
+	EvalFunction EvalFunction
+	Board        *board.Board
+	DebugMode    bool
+	SearchDepth  int
+	EnableTT     bool
+	TTable       map[uint64]ttEntry
 }
 
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	return &EvalEngine{
-		Board:         b,
-		EvalFunction:  GetEvaluation,
-		DebugMode:     c.Engine.Debug,
-		SearchDepth:   c.Engine.MaxDepth,
-		MaxGoroutines: make(chan struct{}, c.Engine.MaxGoRoutines),
-		Algorithm:     c.Engine.Algorithm,
-		TTable:        make(map[uint64]ttEntry),
+		Board:        b,
+		EvalFunction: GetEvaluation,
+		SearchDepth:  c.Engine.MaxDepth,
+		EnableTT:     c.Engine.EnableTT,
+		TTable:       make(map[uint64]ttEntry),
 	}, nil
 }
 
 func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	e.Evaluations = 0
 	var best board.Move
-	start := time.Now()
 	m, c := e.Board.GetLegalMoves()
 	all := append(m, c...)
 	if len(all) == 1 {
@@ -65,8 +58,6 @@ func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
 	} else {
 		best = e.IDSearch(ctx, e.SearchDepth)
 	}
-
-	e.MoveTime = time.Since(start)
 
 	return best
 }

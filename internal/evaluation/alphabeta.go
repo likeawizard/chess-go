@@ -18,22 +18,25 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 		return 0, nil
 	default:
 		alphaTemp := alpha
+		if e.EnableTT {
 
-		if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
-			TTHits++
-			switch entry.ttType {
-			case TT_EXACT:
-				return entry.eval, make([]board.Move, 0)
-			case TT_LOWER:
-				alpha = Max(alpha, entry.eval)
-			case TT_UPPER:
-				beta = Min(beta, entry.eval)
-			}
+			if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
+				TTHits++
+				switch entry.ttType {
+				case TT_EXACT:
+					return entry.eval, make([]board.Move, 0)
+				case TT_LOWER:
+					alpha = Max(alpha, entry.eval)
+				case TT_UPPER:
+					beta = Min(beta, entry.eval)
+				}
 
-			if alpha >= beta {
-				return entry.eval, make([]board.Move, 0)
+				if alpha >= beta {
+					return entry.eval, make([]board.Move, 0)
+				}
 			}
 		}
+
 		m, c := e.Board.GetLegalMoves()
 		pvm := board.Move(0)
 		if len(pv) > 0 {
@@ -68,15 +71,17 @@ func (e *EvalEngine) alphabetaWithTimeout(ctx context.Context, pv []board.Move, 
 				break
 			}
 
-			tt := ttEntry{eval: value, depth: depth}
-			if value <= alphaTemp {
-				tt.ttType = TT_UPPER
-			} else if value >= beta {
-				tt.ttType = TT_LOWER
-			} else {
-				tt.ttType = TT_EXACT
+			if e.EnableTT {
+				tt := ttEntry{eval: value, depth: depth}
+				if value <= alphaTemp {
+					tt.ttType = TT_UPPER
+				} else if value >= beta {
+					tt.ttType = TT_LOWER
+				} else {
+					tt.ttType = TT_EXACT
+				}
+				e.TTable[e.Board.Hash] = tt
 			}
-			e.TTable[e.Board.Hash] = tt
 		}
 		return value, append([]board.Move{move}, movesVar...)
 	}
