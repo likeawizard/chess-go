@@ -8,3 +8,5 @@
 /perft
 /cmd/playground/main.go
 /weights/weights.yml
+/*.svg
+/*.pprof
