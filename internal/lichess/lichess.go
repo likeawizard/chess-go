@@ -187,15 +187,15 @@ func (lc *LichessConnector) ListenToEvents(decoder *json.Decoder) {
 
 		switch e.Type {
 		case EVENT_CHALLENGE:
-			fmt.Printf("New Challenge: %v\n", e.Challenge)
+			//fmt.Printf("New Challenge: %v\n", e.Challenge)
 			lc.HandleChallenges([]Challenge{e.Challenge})
 		case EVENT_GAME_START:
-			fmt.Printf("New Game: %v\n", e.Game)
+			//fmt.Printf("New Game: %v\n", e.Game)
 			go lc.ListenToGame(e.Game)
 		case "gameFinish":
 			lc.MarkGameForCancelation(e.Game.GameID)
 		default:
-			fmt.Printf("Unhandled event: %s\n", e.Type)
+			//fmt.Printf("Unhandled event: %s\n", e.Type)
 		}
 	}
 }
@@ -225,6 +225,8 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 	var cancel context.CancelFunc
 	var timeManagment TimeManagment
 
+	var best, ponder board.Move
+	var pv []board.Move
 	for decoder.More() {
 		var gs GameState
 		err := decoder.Decode(&gs)
@@ -268,7 +270,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.Board.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel := timeManagment.GetTimeoutContext()
-				best := e.GetMove(ctx)
+				best, ponder = e.GetMove(ctx, &pv, false)
 				if best == 0 {
 					return
 				}
@@ -276,20 +278,15 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				fmt.Printf("Playing %s in %s (FEN: %s)\n", best, game.GameID, e.Board.ExportFEN())
 				timeManagment.StartStopWatch()
 				lc.MakeMove(game.GameID, best.String())
-			} else {
-				timeManagment.MeasureLag()
-				if lc.Ponder {
-					ctx, cancel = timeManagment.GetPonderContext()
-					defer cancel()
-					go e.GetMove(ctx)
-				}
 			}
 		case GAME_EVENT_STATE:
-			fmt.Printf("New move in: %s\n", game.GameID)
+			//fmt.Printf("New move in: %s\n", game.GameID)
 			timeManagment.UpdateClock(gs)
 			moves := strings.Fields(gs.Moves)
+			var lastMove string
+
 			if len(moves) != 0 {
-				lastMove := moves[len(moves)-1]
+				lastMove = moves[len(moves)-1]
 				if cancel != nil {
 					cancel()
 				}
@@ -297,11 +294,20 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			}
 
 			if isWhite == (e.Board.IsWhite) {
+				if lc.Ponder {
+					if lastMove == ponder.String() {
+						fmt.Printf("Ponder hit with: %s PV: %v\n", ponder, pv)
+					} else {
+						fmt.Printf("Ponder miss. Expected: %s, Played: %s\n", ponder, lastMove)
+						pv = []board.Move{}
+					}
+				}
+
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.Board.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel = timeManagment.GetTimeoutContext()
 				defer cancel()
-				best := e.GetMove(ctx)
+				best, ponder = e.GetMove(ctx, &pv, false)
 				if best == 0 {
 					return
 				}
@@ -312,9 +318,9 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				timeManagment.MeasureLag()
 				if lc.Ponder {
 					ctx, cancel = timeManagment.GetPonderContext()
-					defer cancel()
-					fmt.Printf("Not my turn in %s (FEN: %s). Pondering...\n", game.GameID, e.Board.ExportFEN())
-					go e.GetMove(ctx)
+					umove := e.Board.MoveLongAlg(ponder)
+					e.GetMove(ctx, &pv, true)
+					umove()
 				}
 			}
 

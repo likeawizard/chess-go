@@ -2,63 +2,45 @@ package eval
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
 )
 
-var DEBUG = false
-var MAX_DEPTH int
-
-var Evaluations int64
-var CachedEvals int64
-
-const (
-	EVAL_MINMAX    string = "minmax"
-	EVAL_ALPHABETA string = "alphabeta"
-)
-
-type Node struct {
-	Position   *board.Board
-	MoveToPlay board.Move
-	Evaluation float32
-	Parent     *Node
-	Children   []*Node
-}
-type SearchFunction func(n *Node, depth ...int) int
-type EvalFunction func(*EvalEngine, *board.Board) int
-
 type EvalEngine struct {
-	Evaluations  int64
-	EvalFunction EvalFunction
-	Board        *board.Board
-	DebugMode    bool
-	SearchDepth  int
-	EnableTT     bool
-	TTable       map[uint64]ttEntry
+	Evaluations int64
+	Board       *board.Board
+	SearchDepth int
+	EnableTT    bool
+	TTable      map[uint64]ttEntry
 }
 
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 	return &EvalEngine{
-		Board:        b,
-		EvalFunction: GetEvaluation,
-		SearchDepth:  c.Engine.MaxDepth,
-		EnableTT:     c.Engine.EnableTT,
-		TTable:       make(map[uint64]ttEntry),
+		Board:       b,
+		SearchDepth: c.Engine.MaxDepth,
+		EnableTT:    c.Engine.EnableTT,
+		TTable:      make(map[uint64]ttEntry),
 	}, nil
 }
 
-func (e *EvalEngine) GetMove(ctx context.Context) board.Move {
+// Returns the best move and best opponent response - ponder
+func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool) (board.Move, board.Move) {
 	e.Evaluations = 0
-	var best board.Move
+	var best, ponder board.Move
+	var ok bool
 	all := e.Board.GetLegalMoves()
 	if len(all) == 1 {
 		best = all[0]
 	} else {
-		best = e.IDSearch(ctx, e.SearchDepth)
+		best, ponder, ok = e.IDSearch(ctx, e.SearchDepth, pv, silent)
+		if !ok {
+			best = all[0]
+		}
 	}
-
-	return best
+	fmt.Println(*pv)
+	return best, ponder
 }
 
 func Max(a, b int) int {

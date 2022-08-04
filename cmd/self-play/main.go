@@ -32,7 +32,8 @@ func main() {
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10*1000)
 			// ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500*1000)
-			move := e.GetMove(ctx)
+			pv := []board.Move{}
+			move, _ := e.GetMove(ctx, &pv, false)
 			defer cancel()
 			if move == 0 {
 				fmt.Println("No legal moves.")
