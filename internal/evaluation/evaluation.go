@@ -2,7 +2,6 @@ package eval
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -39,7 +38,7 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 			best = all[0]
 		}
 	}
-	fmt.Println(*pv)
+
 	return best, ponder
 }
 
