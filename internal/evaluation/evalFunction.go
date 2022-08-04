@@ -16,7 +16,6 @@ func init() {
 		fmt.Println("Unable to load weights")
 		panic(1)
 	}
-	fmt.Printf("%+v\n", weights)
 }
 
 var (
@@ -212,7 +211,7 @@ func getBishopDiagScore(c board.Square) int {
 	return getMajorDiagScoreDR(c) + getMajorDiagScoreUR(c) + getMinoDiagScoreUR(c) + getMinorDiagScoreDR(c)
 }
 
-func GetEvaluation(e *EvalEngine, b *board.Board) int {
+func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	inCheck := b.IsInCheck(b.IsWhite)
 	all := b.GetLegalMoves()
 

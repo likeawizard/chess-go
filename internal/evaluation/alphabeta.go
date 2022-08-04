@@ -52,7 +52,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		e.Board.OrderMoves(pvMove, &all)
 
 		if len(all) == 0 {
-			return side * e.EvalFunction(e, e.Board)
+			return side * e.GetEvaluation(e.Board)
 		}
 
 		var value int
@@ -96,7 +96,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0
 	default:
-		eval := side * e.EvalFunction(e, e.Board)
+		eval := side * e.GetEvaluation(e.Board)
 
 		if eval >= beta {
 			return beta
@@ -130,17 +130,18 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 	}
 }
 
-func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
+// Iterative deepening search. Returns best move, ponder and ok if search succeeded.
+func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, silent bool) (board.Move, board.Move, bool) {
 	var wg sync.WaitGroup
-	var best board.Move
+	var best, ponder board.Move
 	var eval int
-	var line []board.Move
+	var line, bestLine []board.Move
 	color := 1
 	alpha, beta := -math.MaxInt, math.MaxInt
 	if !e.Board.IsWhite {
 		color = -color
 	}
-	done := false
+	done, ok := false, true
 	wg.Add(1)
 	go func() {
 		for d := 1; d <= depth; d++ {
@@ -148,6 +149,11 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 				wg.Done()
 				return
 			}
+
+			if len(*pv) > len(line) {
+				line = *pv
+			}
+
 			e.TTable = make(map[uint64]ttEntry)
 			TTHits = 0
 			eval = e.negamax(ctx, &line, line, d, alpha, beta, color)
@@ -164,18 +170,31 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 					fmt.Println("TTable error - transposition in less than 4ply")
 					panic(1)
 				}
-				best = line[0]
-				evalStr := ""
-				switch eval {
-				case math.MaxInt:
-					evalStr = fmt.Sprintf("#%d", len(line))
-				case -math.MaxInt:
-					evalStr = fmt.Sprintf("#%d", len(line))
-				default:
-					evalStr = fmt.Sprintf("%2.2f", float32(color*eval)/100)
+
+				if len(line) == 0 {
+					done, ok = true, false
+					break
+				} else {
+					best = line[0]
+					if len(line) > 1 {
+						ponder = line[1]
+					}
+					bestLine = line
+				}
+				if !silent {
+					evalStr := ""
+					switch eval {
+					case math.MaxInt:
+						evalStr = fmt.Sprintf("#%d", 1+len(line)/2)
+					case -math.MaxInt:
+						evalStr = fmt.Sprintf("#%d", 1+len(line)/2)
+					default:
+						evalStr = fmt.Sprintf("%2.2f", float32(color*eval)/100)
+					}
+
+					fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
 				}
 
-				fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
 				//found mate stop
 				if eval == math.MaxInt || eval == -math.MaxInt {
 					done = true
@@ -186,5 +205,6 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int) board.Move {
 	}()
 
 	wg.Wait()
-	return best
+	*pv = bestLine
+	return best, ponder, ok
 }

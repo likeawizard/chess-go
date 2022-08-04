@@ -33,8 +33,9 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500*1000)
 	start := time.Now()
-	move := e.GetMove(ctx)
+	pv := []board.Move{}
+	move, ponder := e.GetMove(ctx, &pv, false)
 	defer cancel()
 	b.MoveLongAlg(move)
-	fmt.Println(move, time.Since(start))
+	fmt.Println("bestmove", move, "ponder", ponder, time.Since(start))
 }

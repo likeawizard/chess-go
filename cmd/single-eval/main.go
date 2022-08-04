@@ -23,12 +23,12 @@ func main() {
 		fmt.Printf("Error importing FEN: %s, %s\n", b.ExportFEN(), *fen)
 		return
 	}
-	eval.DEBUG = true
+
 	e, err := eval.NewEvalEngine(b, cfg)
 	if err != nil {
 		fmt.Printf("Unable to load EvalEngine: %s\n", err)
 		return
 	}
 
-	fmt.Println(eval.GetEvaluation(e, b))
+	fmt.Println(e.GetEvaluation(b))
 }
