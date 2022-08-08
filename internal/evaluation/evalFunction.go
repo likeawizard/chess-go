@@ -30,6 +30,10 @@ func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite 
 		return getBishopDiagScore(c)
 	case board.N, board.N + 6:
 		return getKnightPositionScore(c)
+	case board.R, board.R + 6:
+		return rookEval(b, c, isWhite)
+	case board.K, board.K + 6:
+		return taperedKingEval(b, c, isWhite)
 	default:
 		return 0
 	}
@@ -253,4 +257,120 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	b.IsWhite = isWhite
 	e.Evaluations++
 	return eval
+}
+
+func getGamePhase(b *board.Board) (phase int) {
+	phase = 24
+	isWhite := true
+
+	for i := 0; i < 2; i++ {
+		pieces := b.GetPieces(isWhite)
+		for _, piece := range pieces {
+			switch piece % 6 {
+			case 2, 3:
+				phase -= 1
+			case 4:
+				phase -= 2
+			case 5:
+				phase -= 4
+			}
+		}
+		isWhite = !isWhite
+	}
+
+	phase = (phase * 268) / 24
+
+	return
+}
+
+func distCenter(sq board.Square) int {
+	c := int(sq)
+	return Max(3-c/8, c/8-4) + Max(3-c%8, c%8-4)
+}
+
+func distSqares(us, them board.Square) int {
+	u, t := int(us), int(them)
+	return Max((u-t)/8, (t-u)/8) + Max((u-t)%8, (t-u)%8)
+}
+
+func getKingSafety(b *board.Board, king board.Square, isWhite bool) (kingSafety int) {
+	// direction to determine if friendly pieces are in front or behind king
+	// for white discount friendly pieces at -7, -8, -9 and same for black with 7, 8, 9
+	direction := board.Square(6)
+	if isWhite {
+		direction = -6
+	}
+	c := int(king)
+	kingSafety += 2 * distCenter(king)
+
+	for i := 0; i < 8; i++ {
+		target := king + board.Compass[i]
+		if board.CompassBlock[c][i] == 0 || b.Coords[target] == 0 {
+			continue
+		}
+		if b.IsOpponentPiece(isWhite, target) {
+			kingSafety -= 15
+		} else if (isWhite && board.Compass[i] > direction) || (!isWhite && board.Compass[i] < direction) {
+			kingSafety += 5
+		}
+	}
+	return
+}
+
+func getKingActivity(b *board.Board, king board.Square, isWhite bool) (kingActivity int) {
+	oppKing := b.GetKing(!isWhite)
+	kingActivity = -(distCenter(king) + distSqares(king, oppKing))
+	return
+}
+
+func taperedKingEval(b *board.Board, king board.Square, isWhite bool) int {
+	phase := getGamePhase(b)
+	return (getKingSafety(b, king, isWhite)*(256-phase) + getKingActivity(b, king, isWhite)*phase) / 256
+
+}
+
+func rookEval(b *board.Board, rook board.Square, isWhite bool) (rookScore int) {
+	offset := uint8(6)
+	if isWhite {
+		offset = 0
+	}
+	hasOwnPawn, hasOppPawn, connected := false, false, false
+	for dirIdx := 0; dirIdx < 4; dirIdx++ {
+		for i := board.Square(1); i <= board.CompassBlock[rook][dirIdx]; i++ {
+			target := rook + i*board.Compass[dirIdx]
+
+			if b.Coords[target] == 0 {
+				continue
+			}
+			if b.Coords[target] == board.R+offset {
+				connected = true
+			}
+
+			//Only look at N and S
+			if dirIdx > 2 {
+				continue
+			}
+
+			//Check for own or opponent pawns
+			switch b.Coords[target] {
+			case 7 - offset:
+				hasOppPawn = true
+			case 1 + offset:
+				hasOwnPawn = true
+			}
+		}
+	}
+
+	if !hasOwnPawn && !hasOppPawn {
+		rookScore += 15
+	} else if hasOppPawn && !hasOwnPawn {
+		rookScore += 10
+	}
+
+	if connected {
+		rookScore += 10
+	}
+
+	return
+
 }

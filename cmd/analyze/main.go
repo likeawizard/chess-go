@@ -9,11 +9,14 @@ import (
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
 	eval "github.com/likeawizard/chess-go/internal/evaluation"
+	"github.com/pkg/profile"
 	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
 	cfg, err := config.LoadConfig()
+	defer profile.Start(profile.CPUProfile).Stop()
+
 	if err != nil {
 		fmt.Printf("Failed to load app config: %s\n", err)
 	}
