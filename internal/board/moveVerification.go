@@ -4,16 +4,16 @@ import "fmt"
 
 // N, S, W, E, NW, NE, SW, SE
 // 0:4 ranks & files, 4:8 diagonals
-var compass = []Square{8, -8, -1, 1, 7, 9, -9, -7}
+var Compass = []Square{8, -8, -1, 1, 7, 9, -9, -7}
 
 // Number of squares to the edge in compass direction
-var compassBlock = [][]Square{}
+var CompassBlock = [][]Square{}
 
 var knightMoves = [][]Square{}
 
 //pre calculate distances in all compass directions and possible knight jumps for every square
 func init() {
-	compassBlock = make([][]Square, 64)
+	CompassBlock = make([][]Square, 64)
 	min := func(a, b Square) Square {
 		if a < b {
 			return a
@@ -26,14 +26,14 @@ func init() {
 		s := r
 		w := f
 		e := 7 - f
-		compassBlock[i] = []Square{n, s, w, e, min(n, w), min(n, e), min(s, w), min(s, e)}
+		CompassBlock[i] = []Square{n, s, w, e, min(n, w), min(n, e), min(s, w), min(s, e)}
 	}
 	preCalculateKnightMoves()
 }
 
 func preCalculateKnightMoves() {
 	knightMoves = make([][]Square, 64)
-	for c, comp := range compassBlock {
+	for c, comp := range CompassBlock {
 		moves := make([]Square, 0)
 		//2NW
 		if comp[0] > 1 && comp[2] > 0 {
@@ -71,7 +71,7 @@ func preCalculateKnightMoves() {
 	}
 }
 
-func (b *Board) isOpponentPiece(isWhite bool, sq Square) bool {
+func (b *Board) IsOpponentPiece(isWhite bool, sq Square) bool {
 	theirPiece := b.Coords[sq]
 	if theirPiece == 0 {
 		return false
@@ -222,14 +222,14 @@ func (b *Board) GetPawnMoves(c Square, pin, check Move) (moves []Move) {
 	}
 
 	target = c + direction + 1
-	if eastPin && c%8 != 7 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+	if eastPin && c%8 != 7 && CoordInBounds(target) && b.IsOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
 		moves = append(moves, MoveFromSquares(c, target))
 		if target < 15 || target > 55 {
 			hasPromotion = true
 		}
 	}
 	target = c + direction - 1
-	if westPin && c%8 != 0 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+	if westPin && c%8 != 0 && CoordInBounds(target) && b.IsOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
 		moves = append(moves, MoveFromSquares(c, target))
 		if target < 15 || target > 55 {
 			hasPromotion = true
@@ -278,14 +278,14 @@ func (b *Board) GetPawnCaptures(c Square, pin, check Move) (captures []Move) {
 	}
 
 	target = c + direction + 1
-	if eastPin && c%8 != 7 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+	if eastPin && c%8 != 7 && CoordInBounds(target) && b.IsOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
 		captures = append(captures, MoveFromSquares(c, target))
 		if target < 15 || target > 55 {
 			hasPromotion = true
 		}
 	}
 	target = c + direction - 1
-	if westPin && c%8 != 0 && CoordInBounds(target) && b.isOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
+	if westPin && c%8 != 0 && CoordInBounds(target) && b.IsOpponentPiece(b.IsWhite, target) && b.PreventsCheck(target, check) {
 		captures = append(captures, MoveFromSquares(c, target))
 		if target < 15 || target > 55 {
 			hasPromotion = true
@@ -383,11 +383,11 @@ func (b *Board) GetSlidingMoves(c Square, mode SlideMode, pin Move, check Move) 
 		if !pinnedDirections[dirIdx] {
 			continue
 		}
-		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
-			target = c + i*compass[dirIdx]
+		for i := Square(1); i <= CompassBlock[c][dirIdx]; i++ {
+			target = c + i*Compass[dirIdx]
 
 			// Stop if hits own piece
-			if b.Coords[target] != 0 && !b.isOpponentPiece(b.IsWhite, target) {
+			if b.Coords[target] != 0 && !b.IsOpponentPiece(b.IsWhite, target) {
 				break
 			}
 			preventsCheck := b.PreventsCheck(target, check)
@@ -399,7 +399,7 @@ func (b *Board) GetSlidingMoves(c Square, mode SlideMode, pin Move, check Move) 
 			}
 
 			// If hits opponent piece stop and add capture if prevents check
-			if b.isOpponentPiece(b.IsWhite, target) {
+			if b.IsOpponentPiece(b.IsWhite, target) {
 				if preventsCheck {
 					moves = append(moves, MoveFromSquares(c, target))
 				}
@@ -428,17 +428,17 @@ func (b *Board) GetSlidingCaptures(c Square, mode SlideMode, pin Move, check Mov
 		if !pinnedDirections[dirIdx] {
 			continue
 		}
-		for i := Square(1); i <= compassBlock[c][dirIdx]; i++ {
-			target = c + i*compass[dirIdx]
+		for i := Square(1); i <= CompassBlock[c][dirIdx]; i++ {
+			target = c + i*Compass[dirIdx]
 
 			// Stop if hits own piece
-			if b.Coords[target] != 0 && !b.isOpponentPiece(b.IsWhite, target) {
+			if b.Coords[target] != 0 && !b.IsOpponentPiece(b.IsWhite, target) {
 				break
 			}
 			preventsCheck := b.PreventsCheck(target, check)
 
 			// If hits opponent piece stop and add capture if prevents check
-			if b.isOpponentPiece(b.IsWhite, target) {
+			if b.IsOpponentPiece(b.IsWhite, target) {
 				if preventsCheck {
 					captures = append(captures, MoveFromSquares(c, target))
 				}
@@ -476,7 +476,7 @@ func (b *Board) GetQueenCaptures(c Square, pin, check Move) (captures []Move) {
 
 func (b *Board) GetKnightMoves(c Square, check Move) (moves []Move) {
 	for _, knightMove := range knightMoves[c] {
-		if (b.Coords[knightMove] == 0 || b.isOpponentPiece(b.IsWhite, knightMove)) && b.PreventsCheck(knightMove, check) {
+		if (b.Coords[knightMove] == 0 || b.IsOpponentPiece(b.IsWhite, knightMove)) && b.PreventsCheck(knightMove, check) {
 			moves = append(moves, MoveFromSquares(c, knightMove))
 		}
 	}
@@ -486,7 +486,7 @@ func (b *Board) GetKnightMoves(c Square, check Move) (moves []Move) {
 
 func (b *Board) GetKnightCaptures(c Square, check Move) (captures []Move) {
 	for _, knightMove := range knightMoves[c] {
-		if b.isOpponentPiece(b.IsWhite, knightMove) && b.PreventsCheck(knightMove, check) {
+		if b.IsOpponentPiece(b.IsWhite, knightMove) && b.PreventsCheck(knightMove, check) {
 			captures = append(captures, MoveFromSquares(c, knightMove))
 		}
 	}
@@ -499,16 +499,16 @@ func (b *Board) GetKingCaptures(c Square) (captures []Move) {
 	// Temporarily remove king from board to prevent it blocking attacks against itself in escape direction
 	b.Coords[c] = 0
 	for i := 0; i < 8; i++ {
-		if compassBlock[c][i] == 0 {
+		if CompassBlock[c][i] == 0 {
 			continue
 		}
 
-		if b.IsThretened(b.IsWhite, c+compass[i]) {
+		if b.IsThretened(b.IsWhite, c+Compass[i]) {
 			continue
 		}
 
-		if b.isOpponentPiece(b.IsWhite, c+compass[i]) {
-			captures = append(captures, MoveFromSquares(c, c+compass[i]))
+		if b.IsOpponentPiece(b.IsWhite, c+Compass[i]) {
+			captures = append(captures, MoveFromSquares(c, c+Compass[i]))
 		}
 	}
 	b.Coords[c] = king
@@ -519,16 +519,16 @@ func (b *Board) GetKingMoves(c Square) (moves []Move) {
 	king := b.Coords[c]
 	b.Coords[c] = 0
 	for i := 0; i < 8; i++ {
-		if compassBlock[c][i] == 0 {
+		if CompassBlock[c][i] == 0 {
 			continue
 		}
 
-		if b.IsThretened(b.IsWhite, c+compass[i]) {
+		if b.IsThretened(b.IsWhite, c+Compass[i]) {
 			continue
 		}
 
-		if (b.Coords[c+compass[i]] == 0 || b.isOpponentPiece(b.IsWhite, c+compass[i])) && !b.IsThretened(b.IsWhite, c+compass[i]) {
-			moves = append(moves, MoveFromSquares(c, c+compass[i]))
+		if (b.Coords[c+Compass[i]] == 0 || b.IsOpponentPiece(b.IsWhite, c+Compass[i])) && !b.IsThretened(b.IsWhite, c+Compass[i]) {
+			moves = append(moves, MoveFromSquares(c, c+Compass[i]))
 		}
 	}
 	b.Coords[c] = king
@@ -630,16 +630,16 @@ func (b *Board) GetPins(isWhite bool) []Move {
 
 	for dirIdx := 0; dirIdx < 8; dirIdx++ {
 		pinned := Square(-1)
-		for i := Square(1); i <= compassBlock[king][dirIdx]; i++ {
-			target = king + i*compass[dirIdx]
+		for i := Square(1); i <= CompassBlock[king][dirIdx]; i++ {
+			target = king + i*Compass[dirIdx]
 			if b.Coords[target] == 0 {
 				continue
 			}
 
-			if !b.isOpponentPiece(isWhite, target) && pinned == -1 {
+			if !b.IsOpponentPiece(isWhite, target) && pinned == -1 {
 				// set first friendly piece in direction as pinned
 				pinned = target
-			} else if !b.isOpponentPiece(isWhite, target) && pinned != -1 {
+			} else if !b.IsOpponentPiece(isWhite, target) && pinned != -1 {
 				// if second piece is also friendly. stop no pins in direction possible
 				break
 			} else if pinned != 0 && doesPin(dirIdx, b.Coords[target]) {
@@ -694,15 +694,15 @@ func (b *Board) GetChecks(isWhite bool) (checks []Move) {
 	}
 
 	for dirIdx := 0; dirIdx < 8; dirIdx++ {
-		for i := Square(1); i <= compassBlock[king][dirIdx]; i++ {
-			target = king + i*compass[dirIdx]
+		for i := Square(1); i <= CompassBlock[king][dirIdx]; i++ {
+			target = king + i*Compass[dirIdx]
 			if b.Coords[target] == 0 {
 				continue
 			}
 
-			if !b.isOpponentPiece(isWhite, target) || !isThreat(dirIdx, i, b.Coords[target]) {
+			if !b.IsOpponentPiece(isWhite, target) || !isThreat(dirIdx, i, b.Coords[target]) {
 				break
-			} else if b.isOpponentPiece(isWhite, target) && isThreat(dirIdx, i, b.Coords[target]) {
+			} else if b.IsOpponentPiece(isWhite, target) && isThreat(dirIdx, i, b.Coords[target]) {
 				checks = append(checks, MoveFromSquares(target, king))
 				break
 			}
@@ -780,15 +780,15 @@ func (b *Board) IsThretened(isWhite bool, sq Square) bool {
 	}
 
 	for dirIdx := 0; dirIdx < 8; dirIdx++ {
-		for i := Square(1); i <= compassBlock[sq][dirIdx]; i++ {
-			target = sq + i*compass[dirIdx]
+		for i := Square(1); i <= CompassBlock[sq][dirIdx]; i++ {
+			target = sq + i*Compass[dirIdx]
 			if b.Coords[target] == 0 {
 				continue
 			}
 
-			if !b.isOpponentPiece(isWhite, target) || !isThreat(dirIdx, i, b.Coords[target]) {
+			if !b.IsOpponentPiece(isWhite, target) || !isThreat(dirIdx, i, b.Coords[target]) {
 				break
-			} else if b.isOpponentPiece(isWhite, target) && isThreat(dirIdx, i, b.Coords[target]) {
+			} else if b.IsOpponentPiece(isWhite, target) && isThreat(dirIdx, i, b.Coords[target]) {
 				return true
 			}
 		}
