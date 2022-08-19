@@ -20,6 +20,22 @@ func (b *Board) InitDefault() {
 	b.ImportFEN(startingFEN)
 }
 
+func (b *Board) Copy() *Board {
+	copy := Board{
+		Hash:            b.Hash,
+		Pieces:          b.Pieces,
+		Occupancy:       b.Occupancy,
+		Side:            b.Side,
+		IsWhite:         b.IsWhite,
+		CastlingRights:  b.CastlingRights,
+		EnPassantTarget: b.EnPassantTarget,
+		HalfMoveCounter: b.HalfMoveCounter,
+		FullMoveCounter: b.FullMoveCounter,
+	}
+
+	return &copy
+}
+
 type UnMakeMove func()
 type UnMakeMoveOptions struct {
 	isWhite         bool

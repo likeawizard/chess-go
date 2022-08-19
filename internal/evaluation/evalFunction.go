@@ -22,111 +22,109 @@ var (
 	PieceWeights = [12]float32{1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
 )
 
-func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, isWhite bool) int {
+func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, side int) int {
 	switch piece {
 	case board.P, board.P + 6:
-		return getPawnScore(b, c, isWhite)
+		return getPawnScore(b, c, side)
 	case board.B, board.B + 6:
 		return getBishopDiagScore(c)
 	case board.N, board.N + 6:
 		return getKnightPositionScore(c)
 	case board.R, board.R + 6:
-		return rookEval(b, c, isWhite)
+		return rookEval(b, c, side)
 	case board.K, board.K + 6:
-		return taperedKingEval(b, c, isWhite)
+		return taperedKingEval(b, c, side)
 	default:
 		return 0
 	}
 }
 
-func getPawnScore(b *board.Board, sq board.Square, isWhite bool) (value int) {
+func getPawnScore(b *board.Board, sq board.Square, side int) (value int) {
 	value = 0
-	if IsProtected(b, sq, isWhite) {
+	if IsProtected(b, sq, side) {
 		value += weights.Pawn.Protected
 	}
-	if IsDoubled(b, sq, isWhite) {
+	if IsDoubled(b, sq, side) {
 		value += weights.Pawn.Doubled
 	}
 
-	if IsIsolated(b, sq, isWhite) {
+	if IsIsolated(b, sq, side) {
 		value += weights.Pawn.Isolated
 	}
 	advancmentValue := weights.Pawn.Advance
-	if IsPassed(b, sq, isWhite) {
+	if IsPassed(b, sq, side) {
 		advancmentValue += weights.Pawn.Passed
 	}
 
 	value += getCentralPawn(sq)
 
-	value += advancmentValue * getPawnAdvancement(sq, isWhite)
+	value += advancmentValue * getPawnAdvancement(sq, side)
 
 	return
 }
 
 // TODO: combine all pawn functions in one with multi value return
 // Piece protected a pawn
-func IsProtected(b *board.Board, sq board.Square, isWhite bool) bool {
-	direction := board.Square(8)
-	pawn := uint8(7)
-
-	if isWhite {
-		direction = -8
-		pawn = 1
-	}
-
-	target := sq + direction + 1
-	if sq%8 != 7 && b.Coords[target] == pawn {
-		return true
-	}
-
-	target = sq + direction - 1
-	if sq%8 != 0 && b.Coords[target] == pawn {
-		return true
-	}
-
-	return false
+func IsProtected(b *board.Board, sq board.Square, side int) bool {
+	return board.PawnAttacks[side^1][sq]^b.Pieces[side][board.PAWNS] != 0
 }
 
-func IsDoubled(b *board.Board, sq board.Square, isWhite bool) bool {
-	pawn := uint8(7)
-	if isWhite {
-		pawn = 1
-	}
+func IsDoubled(b *board.Board, sq board.Square, side int) bool {
 	file := sq % 8
-	for rank := board.Square(0); rank < 8; rank++ {
-		target := file + rank*8
-		if target != sq && b.Coords[target] == pawn {
-			return true
-		}
+	fileMask := board.BBoard(0)
+	switch file {
+	case 0:
+		fileMask = board.AFile
+	case 1:
+		fileMask = board.BFile
+	case 2:
+		fileMask = board.CFile
+	case 3:
+		fileMask = board.DFile
+	case 4:
+		fileMask = board.EFile
+	case 5:
+		fileMask = board.FFile
+	case 6:
+		fileMask = board.GFile
+	case 7:
+		fileMask = board.HFile
 	}
-	return false
+
+	return (b.Pieces[side][board.PAWNS] & fileMask).Count() > 1
 }
 
 // Has no friendly pawns on neighboring files
-func IsIsolated(b *board.Board, sq board.Square, isWhite bool) bool {
-	pawn := uint8(7)
-	if isWhite {
-		pawn = 1
-	}
+func IsIsolated(b *board.Board, sq board.Square, side int) bool {
 	file := sq % 8
-	for rank := board.Square(0); rank < 8; rank++ {
-		target := file + rank*8
-		if file != 7 && b.Coords[target+1] == pawn {
-			return false
-		}
-
-		if file != 0 && b.Coords[target-1] == pawn {
-			return false
-		}
+	fileMask := board.BBoard(0)
+	switch file {
+	case 0:
+		fileMask = board.BFile
+	case 1:
+		fileMask = board.AFile | board.CFile
+	case 2:
+		fileMask = board.DFile | board.BFile
+	case 3:
+		fileMask = board.EFile | board.CFile
+	case 4:
+		fileMask = board.DFile | board.FFile
+	case 5:
+		fileMask = board.EFile | board.GFile
+	case 6:
+		fileMask = board.FFile | board.HFile
+	case 7:
+		fileMask = board.GFile
 	}
-	return true
+
+	return (b.Pieces[side][board.PAWNS] & fileMask).Count() > 0
 }
 
 // Has no opponent opposing pawns in front (same or neighbor files)
-func IsPassed(b *board.Board, sq board.Square, isWhite bool) bool {
+func IsPassed(b *board.Board, sq board.Square, side int) bool {
 	pawn := uint8(1)
 	direction := board.Square(-1)
-	if isWhite {
+	if side == board.WHITE {
 		direction = 1
 		pawn = 7
 	}
@@ -149,8 +147,8 @@ func IsPassed(b *board.Board, sq board.Square, isWhite bool) bool {
 	return true
 }
 
-func getPawnAdvancement(c board.Square, isWhite bool) int {
-	if isWhite {
+func getPawnAdvancement(c board.Square, side int) int {
+	if side == board.WHITE {
 		return int(c/8 - 1)
 	} else {
 		return int(6 - c/8)
@@ -216,8 +214,8 @@ func getBishopDiagScore(c board.Square) int {
 }
 
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
-	inCheck := b.IsInCheck(b.IsWhite)
-	all := b.GetLegalMoves()
+	inCheck := b.IsChecked(b.Side)
+	all := b.MoveGen()
 
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
@@ -242,7 +240,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 		pieceVal := b.Coords[piece]
 		// TODO: eval for pinned pieces?
 		moves := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, true)
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, board.WHITE)
 		eval += pieceEval
 	}
 
@@ -250,7 +248,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	for _, piece := range blackPieces {
 		pieceVal := b.Coords[piece]
 		moves := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, false)
+		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, board.BLACK)
 		eval -= pieceEval
 	}
 
@@ -293,11 +291,11 @@ func distSqares(us, them board.Square) int {
 	return Max((u-t)/8, (t-u)/8) + Max((u-t)%8, (t-u)%8)
 }
 
-func getKingSafety(b *board.Board, king board.Square, isWhite bool) (kingSafety int) {
+func getKingSafety(b *board.Board, king board.Square, side int) (kingSafety int) {
 	// direction to determine if friendly pieces are in front or behind king
 	// for white discount friendly pieces at -7, -8, -9 and same for black with 7, 8, 9
 	direction := board.Square(6)
-	if isWhite {
+	if side == board.WHITE {
 		direction = -6
 	}
 	c := int(king)
@@ -308,30 +306,30 @@ func getKingSafety(b *board.Board, king board.Square, isWhite bool) (kingSafety 
 		if board.CompassBlock[c][i] == 0 || b.Coords[target] == 0 {
 			continue
 		}
-		if b.IsOpponentPiece(isWhite, target) {
+		if b.IsOpponentPiece(side == board.WHITE, target) {
 			kingSafety -= 15
-		} else if (isWhite && board.Compass[i] > direction) || (!isWhite && board.Compass[i] < direction) {
+		} else if (side == board.WHITE && board.Compass[i] > direction) || (side == board.BLACK && board.Compass[i] < direction) {
 			kingSafety += 5
 		}
 	}
 	return
 }
 
-func getKingActivity(b *board.Board, king board.Square, isWhite bool) (kingActivity int) {
-	oppKing := b.GetKing(!isWhite)
+func getKingActivity(b *board.Board, king board.Square, side int) (kingActivity int) {
+	oppKing := b.GetKing(side != board.WHITE)
 	kingActivity = -(distCenter(king) + distSqares(king, oppKing))
 	return
 }
 
-func taperedKingEval(b *board.Board, king board.Square, isWhite bool) int {
+func taperedKingEval(b *board.Board, king board.Square, side int) int {
 	phase := getGamePhase(b)
-	return (getKingSafety(b, king, isWhite)*(256-phase) + getKingActivity(b, king, isWhite)*phase) / 256
+	return (getKingSafety(b, king, side)*(256-phase) + getKingActivity(b, king, side)*phase) / 256
 
 }
 
-func rookEval(b *board.Board, rook board.Square, isWhite bool) (rookScore int) {
+func rookEval(b *board.Board, rook board.Square, side int) (rookScore int) {
 	offset := uint8(6)
-	if isWhite {
+	if side == board.WHITE {
 		offset = 0
 	}
 	hasOwnPawn, hasOppPawn, connected := false, false, false

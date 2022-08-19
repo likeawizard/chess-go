@@ -10,3 +10,4 @@
 /weights/weights.yml
 /*.svg
 /*.pprof
+/build

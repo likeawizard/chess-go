@@ -56,7 +56,7 @@ func (b *Board) ExportFEN() string {
 	}
 
 	sideToMove := WhiteToMove
-	if !b.IsWhite {
+	if b.Side == BLACK {
 		sideToMove = BlackToMove
 	}
 
@@ -78,8 +78,14 @@ func (b *Board) ImportFEN(fen string) error {
 	if err != nil {
 		return err
 	}
+	b.parsePieces(position)
 
 	b.IsWhite = sideToMove[0] == WhiteToMove
+	if sideToMove[0] == WhiteToMove {
+		b.Side = WHITE
+	} else {
+		b.Side = BLACK
+	}
 	fm, err := strconv.Atoi(fullMove)
 	if err != nil {
 		return err
@@ -114,6 +120,57 @@ func (b *Board) ImportFEN(fen string) error {
 	b.Hash = b.SeedHash()
 
 	return nil
+}
+
+func (b *Board) parsePieces(position string) {
+	ranks := strings.Split(position, "/")
+	for i, rankData := range ranks {
+		file := 7
+		for f := len(rankData) - 1; f >= 0; f-- {
+			symbol := rankData[f : f+1]
+			empty, err := strconv.Atoi(symbol)
+			if err == nil {
+				file -= empty
+				continue
+			}
+
+			piece := BBoard(1 << (i*8 + file))
+			switch symbol {
+			case "P":
+				b.Pieces[WHITE][PAWNS] |= piece
+			case "B":
+				b.Pieces[WHITE][BISHOPS] |= piece
+			case "N":
+				b.Pieces[WHITE][KNIGHTS] |= piece
+			case "R":
+				b.Pieces[WHITE][ROOKS] |= piece
+			case "Q":
+				b.Pieces[WHITE][QUEENS] |= piece
+			case "K":
+				b.Pieces[WHITE][KINGS] |= piece
+			case "p":
+				b.Pieces[BLACK][PAWNS] |= piece
+			case "b":
+				b.Pieces[BLACK][BISHOPS] |= piece
+			case "n":
+				b.Pieces[BLACK][KNIGHTS] |= piece
+			case "r":
+				b.Pieces[BLACK][ROOKS] |= piece
+			case "q":
+				b.Pieces[BLACK][QUEENS] |= piece
+			case "k":
+				b.Pieces[BLACK][KINGS] |= piece
+			}
+			file--
+		}
+	}
+	for side := 0; side <= 1; side++ {
+		for piece := 0; piece <= 5; piece++ {
+			b.Occupancy[side] |= b.Pieces[side][piece]
+		}
+	}
+
+	b.Occupancy[BOTH] = b.Occupancy[WHITE] | b.Occupancy[BLACK]
 }
 
 func parsePosition(position string) ([64]uint8, error) {
