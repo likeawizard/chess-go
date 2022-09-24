@@ -189,9 +189,18 @@ func (b *Board) serializePosition() string {
 		if val == 0 {
 			empty++
 		} else {
+			if empty > 0 {
+				fen += fmt.Sprint(empty)
+				empty = 0
+			}
 			fen += string([]byte{val})
 		}
 	}
+
+	if empty > 0 {
+		fen += fmt.Sprint(empty)
+	}
+
 	return fen
 }
 
