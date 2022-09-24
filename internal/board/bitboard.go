@@ -113,7 +113,6 @@ func (b *Board) GetPinsBB(side int) map[int]BBoard {
 // Slider piece checks return a bitboard containing squares that are legal destinations which either capture the checker or block its attack.
 // A knight checker returns only the position of the knight to be captured as blocking is impossible unlike sliding pieces.
 // In case of a double check only the king can move and the resulting bitboard can not be used for determining the legality of other piece moves.
-// Double attacks can only consist of two different attack types. For example no legal position can lead to a double attack with two knight attacks, two bishop attacks or two rook attacks. More importantly pawn & knight and pawn & bishop
 func (b *Board) GetChecksBB(side int) (BBoard, bool) {
 	var numChecks int
 	var checks, attacker BBoard
@@ -130,7 +129,7 @@ func (b *Board) GetChecksBB(side int) (BBoard, bool) {
 	attacker = GetRookAttacks(king, b.Occupancy[BOTH]) & (b.Pieces[side^1][ROOKS] | b.Pieces[side^1][QUEENS])
 	if attacker != 0 {
 		checks |= (GetRookAttacks(attacker.LS1B(), b.Pieces[side][KINGS]) & GetRookAttacks(king, attacker)) | attacker&^b.Pieces[side][KINGS]
-		numChecks++
+		numChecks += attacker.Count()
 	}
 
 	// A pawn can check by moving forward or capturing. Only a capture move that clears a file for a rook attack can create a double check. So only check Knight and Bishop checks if no pawn check is present
