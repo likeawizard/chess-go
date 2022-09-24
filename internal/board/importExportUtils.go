@@ -215,64 +215,62 @@ func (b *Board) GeneratePGN(moves []Move) string {
 		if n%2 == 0 {
 			pgn += fmt.Sprintf("%d. ", bb.FullMoveCounter)
 		}
-		pgn += bb.MoveToPretty(move.String()) + " "
+		pgn += bb.UCIToAlgebraic(move.String()) + " "
 		bb.MakeMove(move)
 	}
 	return pgn
 }
 
-// Convert UCI to short algebraic
-// TODO: stub
-func (b *Board) MoveToPretty(move string) (pretty string) {
-	pretty = move
-	return
-	// var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
-	// from, to := MoveFromString(move).FromTo()
-	// targetPiece := b.Coords[to]
-	// piece := b.Coords[from]
-	// all := b.MoveGen()
-	// switch {
-	// case piece == P || piece == p:
-	// 	pretty = move[2:]
-	// 	if move[:1] != move[2:3] {
-	// 		pretty = move[:1] + "x" + pretty
-	// 	}
-	// case (piece == K || piece == k) && move == CastlingMoves[0] || move == CastlingMoves[2]:
-	// 	return "O-O"
-	// case (piece == K || piece == k) && move == CastlingMoves[1] || move == CastlingMoves[3]:
-	// 	return "O-O-O"
-	// default:
-	// 	pretty = Pieces[(piece-1)%PieceOffset]
-	// 	pretty += b.Disambiguate(move, all)
-	// 	if targetPiece > 0 {
-	// 		pretty += "x"
-	// 	}
-	// 	pretty += move[2:]
-	// }
-	// if len(move) == 5 {
-	// 	pretty += "=" + strings.ToUpper(move[4:])
-	// }
+// Convert UCI move to short algebraic
+func (b *Board) UCIToAlgebraic(move string) (pretty string) {
+	from, to := MoveFromString(move).FromTo()
+	_, _, piece := b.PieceAtSquare(from)
+	_, _, targetPiece := b.PieceAtSquare(to)
+	switch {
+	case piece == PAWNS:
+		pretty = move[2:]
+		if move[:1] != move[2:3] {
+			pretty = move[:1] + "x" + pretty
+		}
+	case piece == KINGS && (move == WCastleKing.String() || move == BCastleKing.String()):
+		return "O-O"
+	case piece == KINGS && (move == WCastleQueen.String() || move == BCastleQueen.String()):
+		return "O-O-O"
+	default:
+		pretty = Pieces[piece]
+		pretty += b.Disambiguate(move)
+		if targetPiece > 0 {
+			pretty += "x"
+		}
+		pretty += move[2:]
+	}
+	if len(move) == 5 {
+		pretty += "=" + strings.ToUpper(move[4:])
+	}
 
-	// return
+	return
 }
 
-// Add rank and file disambiguations for short algebraic
-// TODO: stub, existing code is bugged
-func (b *Board) Disambiguate(move string, moves []Move) string {
-	return move
-	// dis := ""
-	// from, to := MoveFromString(move).FromTo()
-	// for _, m := range moves {
-	// 	f, t := m.FromTo()
-	// 	if m.String()[:2] == move[:2] || b.Coords[from] != b.Coords[f] {
-	// 		continue
-	// 	}
-	// 	if (from-f)%8 == 0 && to == t {
-	// 		dis += move[1:2]
-	// 	}
-	// 	if f/8 == from/8 && to == t {
-	// 		dis += move[0:1]
-	// 	}
-	// }
-	// return dis
+// Add rank or file disambiguations for short algebraic
+func (b *Board) Disambiguate(move string) string {
+	moves := b.MoveGen()
+	dis := ""
+	from, to := MoveFromString(move).FromTo()
+	_, _, piece := b.PieceAtSquare(from)
+	for _, m := range moves {
+		f, t := m.FromTo()
+		_, _, refPiece := b.PieceAtSquare(f)
+		// If the piece is of different type ignore
+		if piece != refPiece || move == m.String() {
+			continue
+		}
+		// If a piece of the same type can move to the target square add rank or file
+		if (from-f)%8 == 0 && to == t {
+			dis += move[1:2]
+		}
+		if f/8 == from/8 && to == t {
+			dis += move[0:1]
+		}
+	}
+	return dis
 }
