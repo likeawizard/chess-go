@@ -4,6 +4,12 @@ import (
 	"math/rand"
 )
 
+var seed uint64
+var pieceKeys [2][6][64]uint64
+var castlingKeys map[CastlingRights]uint64
+var swapSide uint64
+var enPassantKeys [64]uint64
+
 func init() {
 	seed = rand.Uint64()
 	castlingKeys = make(map[CastlingRights]uint64)
@@ -26,12 +32,6 @@ func init() {
 
 	swapSide = rand.Uint64()
 }
-
-var seed uint64
-var pieceKeys [2][6][64]uint64
-var castlingKeys map[CastlingRights]uint64
-var swapSide uint64
-var enPassantKeys [64]uint64
 
 // Calculate Zborist hash of the position
 func (b *Board) SeedHash() uint64 {
