@@ -46,31 +46,3 @@ func (b *Board) updateCastlingRights(move Move) {
 		b.CastlingRights = b.CastlingRights &^ BOO
 	}
 }
-
-func (b *Board) updateEnPassantTarget(move Move) {
-	from, to := move.FromTo()
-	piece := b.Coords[to]
-	isPawnMove := piece == P || piece == p
-	isDoubleMove := from-to == 16 || from-to == -16
-
-	if b.EnPassantTarget != -1 {
-		b.ZobristEnPassant(b.EnPassantTarget)
-	}
-
-	if isDoubleMove && isPawnMove {
-		b.EnPassantTarget = Square((from + to) / 2)
-		b.ZobristEnPassant(b.EnPassantTarget)
-	} else {
-		b.EnPassantTarget = -1
-	}
-}
-
-func (b *Board) updateSideToMove() {
-	b.ZobristSideToMove()
-	b.IsWhite = !b.IsWhite
-
-	//Increment moves after black moves
-	if b.IsWhite {
-		b.FullMoveCounter++
-	}
-}

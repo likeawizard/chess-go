@@ -8,30 +8,7 @@ import (
 )
 
 func (b *Board) ExportFEN() string {
-	var fen string
-	var emptySquaresCounter int
-	var piece uint8
-	for r := 7; r >= 0; r-- {
-		for f := 0; f < 8; f++ {
-			piece = b.Coords[f+r*8]
-			if piece == 0 {
-				emptySquaresCounter++
-			} else {
-				if emptySquaresCounter > 0 {
-					fen += string(rune(emptySquaresCounter + '0'))
-					emptySquaresCounter = 0
-				}
-				fen += Pieces[piece-1]
-			}
-		}
-		if emptySquaresCounter > 0 {
-			fen += string(rune(emptySquaresCounter + '0'))
-			emptySquaresCounter = 0
-		}
-		if r > 0 {
-			fen += "/"
-		}
-	}
+	fen := b.serializePosition()
 	castlingRights := ""
 	if b.CastlingRights != 0 {
 		if b.CastlingRights&WOO != 0 {
@@ -56,7 +33,7 @@ func (b *Board) ExportFEN() string {
 	}
 
 	sideToMove := WhiteToMove
-	if !b.IsWhite {
+	if b.Side == BLACK {
 		sideToMove = BlackToMove
 	}
 
@@ -73,13 +50,14 @@ func (b *Board) ImportFEN(fen string) error {
 	sideToMove, castling, enPassant, halfMove, fullMove := fields[1], fields[2], fields[3], fields[4], fields[5]
 
 	var err error
-
-	b.Coords, err = parsePosition(position)
-	if err != nil {
-		return err
-	}
+	b.parsePieces(position)
 
 	b.IsWhite = sideToMove[0] == WhiteToMove
+	if sideToMove[0] == WhiteToMove {
+		b.Side = WHITE
+	} else {
+		b.Side = BLACK
+	}
 	fm, err := strconv.Atoi(fullMove)
 	if err != nil {
 		return err
@@ -114,6 +92,105 @@ func (b *Board) ImportFEN(fen string) error {
 	b.Hash = b.SeedHash()
 
 	return nil
+}
+
+func (b *Board) parsePieces(position string) {
+	ranks := strings.Split(position, "/")
+	for i, rankData := range ranks {
+		file := 7
+		for f := len(rankData) - 1; f >= 0; f-- {
+			symbol := rankData[f : f+1]
+			empty, err := strconv.Atoi(symbol)
+			if err == nil {
+				file -= empty
+				continue
+			}
+
+			piece := BBoard(1 << (i*8 + file))
+			switch symbol {
+			case "P":
+				b.Pieces[WHITE][PAWNS] |= piece
+			case "B":
+				b.Pieces[WHITE][BISHOPS] |= piece
+			case "N":
+				b.Pieces[WHITE][KNIGHTS] |= piece
+			case "R":
+				b.Pieces[WHITE][ROOKS] |= piece
+			case "Q":
+				b.Pieces[WHITE][QUEENS] |= piece
+			case "K":
+				b.Pieces[WHITE][KINGS] |= piece
+			case "p":
+				b.Pieces[BLACK][PAWNS] |= piece
+			case "b":
+				b.Pieces[BLACK][BISHOPS] |= piece
+			case "n":
+				b.Pieces[BLACK][KNIGHTS] |= piece
+			case "r":
+				b.Pieces[BLACK][ROOKS] |= piece
+			case "q":
+				b.Pieces[BLACK][QUEENS] |= piece
+			case "k":
+				b.Pieces[BLACK][KINGS] |= piece
+			}
+			file--
+		}
+	}
+	for side := 0; side <= 1; side++ {
+		for piece := 0; piece <= 5; piece++ {
+			b.Occupancy[side] |= b.Pieces[side][piece]
+		}
+	}
+
+	b.Occupancy[BOTH] = b.Occupancy[WHITE] | b.Occupancy[BLACK]
+}
+
+// Serialize the board into fen representation of piece placement
+func (b *Board) serializePosition() string {
+	byteBoard := make([]byte, 64)
+	for color := WHITE; color <= BLACK; color++ {
+		for pieceType := PAWNS; pieceType <= KINGS; pieceType++ {
+			pieces := b.Pieces[color][pieceType]
+			var piece byte
+			switch pieceType {
+			case PAWNS:
+				piece = 'P'
+			case BISHOPS:
+				piece = 'B'
+			case KNIGHTS:
+				piece = 'N'
+			case ROOKS:
+				piece = 'R'
+			case QUEENS:
+				piece = 'Q'
+			case KINGS:
+				piece = 'K'
+			}
+			piece += byte(color) * 32
+			for pieces > 0 {
+				sq := pieces.PopLS1B()
+				byteBoard[sq] = piece
+			}
+		}
+	}
+	empty := 0
+	fen := ""
+	for i, val := range byteBoard {
+		if i%8 == 0 {
+			if empty > 0 {
+				fen += fmt.Sprint(empty)
+			}
+			empty = 0
+			fen += "/"
+		}
+		if val == 0 {
+			empty++
+		} else {
+			fen += string([]byte{val})
+		}
+	}
+	fen += "/"
+	return fen
 }
 
 func parsePosition(position string) ([64]uint8, error) {
@@ -156,56 +233,63 @@ func (b *Board) GeneratePGN(moves []Move) string {
 			pgn += fmt.Sprintf("%d. ", bb.FullMoveCounter)
 		}
 		pgn += bb.MoveToPretty(move.String()) + " "
-		bb.MoveLongAlg(move)
+		bb.MakeMove(move)
 	}
 	return pgn
 }
 
+// Convert UCI to short algebraic
+// TODO: stub
 func (b *Board) MoveToPretty(move string) (pretty string) {
-	var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
-	from, to := MoveFromString(move).FromTo()
-	targetPiece := b.Coords[to]
-	piece := b.Coords[from]
-	all := b.GetLegalMoves()
-	switch {
-	case piece == P || piece == p:
-		pretty = move[2:]
-		if move[:1] != move[2:3] {
-			pretty = move[:1] + "x" + pretty
-		}
-	case (piece == K || piece == k) && move == CastlingMoves[0] || move == CastlingMoves[2]:
-		return "O-O"
-	case (piece == K || piece == k) && move == CastlingMoves[1] || move == CastlingMoves[3]:
-		return "O-O-O"
-	default:
-		pretty = Pieces[(piece-1)%PieceOffset]
-		pretty += b.Disambiguate(move, all)
-		if targetPiece > 0 {
-			pretty += "x"
-		}
-		pretty += move[2:]
-	}
-	if len(move) == 5 {
-		pretty += "=" + strings.ToUpper(move[4:])
-	}
-
+	pretty = move
 	return
+	// var CastlingMoves = [4]string{"e1g1", "e1c1", "e8g8", "e8c8"}
+	// from, to := MoveFromString(move).FromTo()
+	// targetPiece := b.Coords[to]
+	// piece := b.Coords[from]
+	// all := b.MoveGen()
+	// switch {
+	// case piece == P || piece == p:
+	// 	pretty = move[2:]
+	// 	if move[:1] != move[2:3] {
+	// 		pretty = move[:1] + "x" + pretty
+	// 	}
+	// case (piece == K || piece == k) && move == CastlingMoves[0] || move == CastlingMoves[2]:
+	// 	return "O-O"
+	// case (piece == K || piece == k) && move == CastlingMoves[1] || move == CastlingMoves[3]:
+	// 	return "O-O-O"
+	// default:
+	// 	pretty = Pieces[(piece-1)%PieceOffset]
+	// 	pretty += b.Disambiguate(move, all)
+	// 	if targetPiece > 0 {
+	// 		pretty += "x"
+	// 	}
+	// 	pretty += move[2:]
+	// }
+	// if len(move) == 5 {
+	// 	pretty += "=" + strings.ToUpper(move[4:])
+	// }
+
+	// return
 }
 
+// Add rank and file disambiguations for short algebraic
+// TODO: stub, existing code is bugged
 func (b *Board) Disambiguate(move string, moves []Move) string {
-	dis := ""
-	from, to := MoveFromString(move).FromTo()
-	for _, m := range moves {
-		f, t := m.FromTo()
-		if m.String()[:2] == move[:2] || b.Coords[from] != b.Coords[f] {
-			continue
-		}
-		if (from-f)%8 == 0 && to == t {
-			dis += move[1:2]
-		}
-		if f/8 == from/8 && to == t {
-			dis += move[0:1]
-		}
-	}
-	return dis
+	return move
+	// dis := ""
+	// from, to := MoveFromString(move).FromTo()
+	// for _, m := range moves {
+	// 	f, t := m.FromTo()
+	// 	if m.String()[:2] == move[:2] || b.Coords[from] != b.Coords[f] {
+	// 		continue
+	// 	}
+	// 	if (from-f)%8 == 0 && to == t {
+	// 		dis += move[1:2]
+	// 	}
+	// 	if f/8 == from/8 && to == t {
+	// 		dis += move[0:1]
+	// 	}
+	// }
+	// return dis
 }

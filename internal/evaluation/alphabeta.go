@@ -48,7 +48,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 			pvMoves = pvMoves[1:]
 		}
 
-		all := e.Board.GetLegalMoves()
+		all := e.Board.MoveGen()
 		e.Board.OrderMoves(pvMove, &all)
 
 		if len(all) == 0 {
@@ -60,7 +60,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		value = -math.MaxInt
 		pv := []board.Move{}
 		for i := 0; i < len(all); i++ {
-			umove := e.Board.MoveLongAlg(all[i])
+			umove := e.Board.MakeMove(all[i])
 			value = Max(value, -e.negamax(ctx, &pv, pvMoves, depth-1, -beta, -alpha, -side))
 			umove()
 
@@ -106,7 +106,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 			alpha = eval
 		}
 
-		all := e.Board.GetCaptures()
+		all := e.Board.MoveGenCaptures()
 		pvm := board.Move(0)
 		e.Board.OrderMoves(pvm, &all)
 
@@ -118,7 +118,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 
 		value = -math.MaxInt
 		for i := 0; i < len(all); i++ {
-			umove := e.Board.MoveLongAlg(all[i])
+			umove := e.Board.MakeMove(all[i])
 			value = Max(value, -e.quiescence(ctx, -beta, -alpha, -side))
 			umove()
 			alpha = Max(value, alpha)
