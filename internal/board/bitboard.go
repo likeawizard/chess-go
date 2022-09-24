@@ -596,10 +596,9 @@ func (b *Board) CompleteCastling(move Move) {
 
 // Get the piece at square as a collection of values: found, color, piece
 func (b *Board) PieceAtSquare(sq Square) (bool, int, int) {
-	square := BBoard(1 << sq)
 	for color := WHITE; color <= BLACK; color++ {
 		for pieceType := PAWNS; pieceType <= KINGS; pieceType++ {
-			if square&b.Pieces[color][pieceType] != 0 {
+			if SquareBitboards[sq]&b.Pieces[color][pieceType] != 0 {
 				return true, color, pieceType
 			}
 		}
