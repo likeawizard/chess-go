@@ -9,8 +9,6 @@ import (
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-var TTHits int
-
 func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []board.Move, depth int, alpha, beta int, side int) int {
 	select {
 	case <-ctx.Done():
@@ -21,26 +19,27 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 			return e.quiescence(ctx, alpha, beta, side)
 		}
 
-		alphaTemp := alpha
-		if e.EnableTT {
+		e.Stats.nodes++
 
-			if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
-				TTHits++
-				switch entry.ttType {
-				case TT_EXACT:
-					return entry.eval
-				case TT_LOWER:
-					alpha = Max(alpha, entry.eval)
-				case TT_UPPER:
-					beta = Min(beta, entry.eval)
-				}
+		// alphaTemp := alpha
+		// if e.EnableTT {
 
-				if alpha >= beta {
-					*line = []board.Move{entry.move}
-					return entry.eval
-				}
-			}
-		}
+		// 	if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
+		// 		switch entry.ttType {
+		// 		case TT_EXACT:
+		// 			return entry.eval
+		// 		case TT_LOWER:
+		// 			alpha = Max(alpha, entry.eval)
+		// 		case TT_UPPER:
+		// 			beta = Min(beta, entry.eval)
+		// 		}
+
+		// 		if alpha >= beta {
+		// 			*line = []board.Move{entry.move}
+		// 			return entry.eval
+		// 		}
+		// 	}
+		// }
 
 		var pvMove board.Move
 		if len(pvMoves) != 0 {
@@ -74,17 +73,17 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 				break
 			}
 
-			if e.EnableTT {
-				tt := ttEntry{eval: value, depth: depth, move: all[i]}
-				if value <= alphaTemp {
-					tt.ttType = TT_UPPER
-				} else if value >= beta {
-					tt.ttType = TT_LOWER
-				} else {
-					tt.ttType = TT_EXACT
-				}
-				e.TTable[e.Board.Hash] = tt
-			}
+			// if e.EnableTT {
+			// 	tt := ttEntry{eval: value, depth: depth, move: all[i]}
+			// 	if value <= alphaTemp {
+			// 		tt.ttType = TT_UPPER
+			// 	} else if value >= beta {
+			// 		tt.ttType = TT_LOWER
+			// 	} else {
+			// 		tt.ttType = TT_EXACT
+			// 	}
+			// 	e.TTable[e.Board.Hash] = tt
+			// }
 		}
 		return value
 	}
@@ -96,6 +95,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0
 	default:
+		e.Stats.qNodes++
 		eval := side * e.GetEvaluation(e.Board)
 
 		if eval >= beta {
@@ -154,8 +154,8 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 				line = *pv
 			}
 
-			e.TTable = make(map[uint64]ttEntry)
-			TTHits = 0
+			// e.TTable = make(map[uint64]ttEntry)
+			e.Stats.Start()
 			eval = e.negamax(ctx, &line, line, d, alpha, beta, color)
 
 			select {
@@ -166,10 +166,10 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 				return
 			default:
 				// Debug purposes. No TTHit can happen under 4ply.
-				if depth < 4 && TTHits > 0 {
-					fmt.Println("TTable error - transposition in less than 4ply")
-					panic(1)
-				}
+				// if depth < 4 && TTHits > 0 {
+				// 	fmt.Println("TTable error - transposition in less than 4ply")
+				// 	panic(1)
+				// }
 
 				if len(line) == 0 {
 					done, ok = true, false
@@ -192,7 +192,8 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 						evalStr = fmt.Sprintf("%2.2f", float32(color*eval)/100)
 					}
 
-					fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
+					// fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
+					fmt.Printf("Depth: %d (%s) Move: %v (%s)\n", d, evalStr, line, e.Stats.String())
 				}
 
 				//found mate stop

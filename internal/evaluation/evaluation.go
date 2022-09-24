@@ -8,7 +8,7 @@ import (
 )
 
 type EvalEngine struct {
-	Evaluations int64
+	Stats       EvalStats
 	Board       *board.Board
 	SearchDepth int
 	EnableTT    bool
@@ -26,7 +26,6 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 
 // Returns the best move and best opponent response - ponder
 func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool) (board.Move, board.Move) {
-	e.Evaluations = 0
 	var best, ponder board.Move
 	var ok bool
 	all := e.Board.MoveGen()

@@ -194,6 +194,7 @@ func getBishopDiagScore(c board.Square) int {
 }
 
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
+	e.Stats.evals++
 	inCheck := b.IsChecked(b.Side)
 	all := b.MoveGen()
 
