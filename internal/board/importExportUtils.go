@@ -173,6 +173,7 @@ func (b *Board) serializePosition() string {
 			}
 		}
 	}
+
 	empty := 0
 	fen := ""
 	for i, val := range byteBoard {
@@ -181,7 +182,9 @@ func (b *Board) serializePosition() string {
 				fen += fmt.Sprint(empty)
 			}
 			empty = 0
-			fen += "/"
+			if i != 0 {
+				fen += "/"
+			}
 		}
 		if val == 0 {
 			empty++
@@ -189,35 +192,7 @@ func (b *Board) serializePosition() string {
 			fen += string([]byte{val})
 		}
 	}
-	fen += "/"
 	return fen
-}
-
-func parsePosition(position string) ([64]uint8, error) {
-	var (
-		f = 0
-		r = 7
-	)
-	c := [64]uint8{}
-	for _, char := range position {
-		symbol := string(char)
-		offset, err := strconv.Atoi(symbol)
-		if err != nil {
-			if char == '/' {
-				f = 0
-				r--
-			} else if char == ' ' {
-				break
-			} else {
-				piece := PieceSymbolToInt(symbol)
-				c[f+r*8] = piece
-				f++
-			}
-		} else {
-			f += offset
-		}
-	}
-	return c, nil
 }
 
 func (b *Board) WritePGNToFile(data string, path string) {
