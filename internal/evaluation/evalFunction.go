@@ -199,7 +199,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 
 	//Mate = +/-Inf score
 	if inCheck && len(all) == 0 {
-		if b.IsWhite {
+		if b.Side == board.WHITE {
 			return -math.MaxInt
 		} else {
 			return math.MaxInt
