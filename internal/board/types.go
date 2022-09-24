@@ -17,11 +17,10 @@ package board
 */
 type Board struct {
 	Hash            uint64
-	Coords          [64]uint8
 	Pieces          [2][6]BBoard
 	Occupancy       [3]BBoard
 	Side            int
-	IsWhite         bool
+	IsWhite         bool // TODO: redundant to Side
 	CastlingRights  CastlingRights
 	EnPassantTarget Square
 	HalfMoveCounter uint8

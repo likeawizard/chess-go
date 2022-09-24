@@ -3,6 +3,7 @@ package board
 import (
 	"fmt"
 	"math/bits"
+	"strings"
 )
 
 // Get a human readable string represantiation of a bitboard.
@@ -468,6 +469,19 @@ func (b *Board) MoveGenKing() []Move {
 	return moves
 }
 
+// Get all legal capture moves for current side to move
+// TODO: performance: implement independetly of MoveGen to reduce redundancy
+func (b *Board) MoveGenCaptures() []Move {
+	all := b.MoveGen()
+	captures := make([]Move, 0)
+	for _, move := range all {
+		if move.IsCapture() {
+			captures = append(captures, move)
+		}
+	}
+	return captures
+}
+
 // Generate a function to return the board state the it's current state
 func (b *Board) GetUnmake() func() {
 	copy := b.Copy()
@@ -520,14 +534,37 @@ func (b *Board) MakeMove(move Move) func() {
 	return umove
 }
 
+// Attempt to play a UCI move in position. Returns unmake closure and ok
+func (b *Board) MoveUCI(uciMove string) (func(), bool) {
+	all := b.MoveGen()
+
+	for _, move := range all {
+		if uciMove == move.String() {
+			return b.MakeMove(move), true
+		}
+	}
+	return nil, false
+}
+
+// Play out a line of UCI moves in succession. Returns success.
+func (b *Board) PlayMovesUCI(uciMoves string) bool {
+	moveSlice := strings.Fields(uciMoves)
+
+	for _, uciMove := range moveSlice {
+		_, ok := b.MoveUCI(uciMove)
+		if !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Return a pointer to the bitboard of the piece moved
 func (b *Board) GetBitBoard(piece int, move Move) *BBoard {
 	side := WHITE
 	if piece > 6 {
 		side = BLACK
-	}
-	if (piece-1)%6 == -1 {
-		fmt.Println(uint64(move), piece)
 	}
 	return &b.Pieces[side][(piece-1)%6]
 }
@@ -556,6 +593,20 @@ func (b *Board) CompleteCastling(move Move) {
 	}
 	bitboard.Set(int(rookMove.To()))
 	bitboard.Clear(int(rookMove.From()))
+}
+
+// Get the piece at square as a collection of values: found, color, piece
+func (b *Board) PieceAtSquare(sq Square) (bool, int, int) {
+	square := BBoard(1 << sq)
+	for color := WHITE; color <= BLACK; color++ {
+		for pieceType := PAWNS; pieceType <= KINGS; pieceType++ {
+			if square&b.Pieces[color][pieceType] != 0 {
+				return true, color, pieceType
+			}
+		}
+	}
+
+	return false, 0, 0
 }
 
 // Replace a pawn on the 8th/1st rank with the promotion piece

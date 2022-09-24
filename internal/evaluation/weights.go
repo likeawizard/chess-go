@@ -3,6 +3,7 @@ package eval
 import (
 	"os"
 
+	"github.com/likeawizard/chess-go/internal/board"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,17 +25,17 @@ func LoadWeights() (*Weights, error) {
 	return &weights, nil
 }
 
-func getPieceWeight(piece uint8) int {
-	switch piece % 6 {
-	case 1:
+func getPieceWeight(piece int) int {
+	switch piece {
+	case board.PAWNS:
 		return weights.Pieces.Pawn
-	case 2:
+	case board.BISHOPS:
 		return weights.Pieces.Bishop
-	case 3:
+	case board.KNIGHTS:
 		return weights.Pieces.Knight
-	case 4:
+	case board.ROOKS:
 		return weights.Pieces.Rook
-	case 5:
+	case board.QUEENS:
 		return weights.Pieces.Queen
 	default:
 		return 0

@@ -39,7 +39,7 @@ func main() {
 				fmt.Println("No legal moves.")
 				return
 			}
-			b1.MoveLongAlg(move)
+			b1.MakeMove(move)
 			moves = append(moves, move)
 			fmt.Println("playing:", move.String())
 

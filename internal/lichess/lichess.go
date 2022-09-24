@@ -257,7 +257,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			} else {
 				b.ImportFEN(gs.InitialFen)
 			}
-			b.PlayMoves(gs.State.Moves)
+			b.PlayMovesUCI(gs.State.Moves)
 			e, err = eval.NewEvalEngine(b, lc.Config)
 			if err != nil {
 				fmt.Printf("Error loading eval engine: %s\n", err)
@@ -290,7 +290,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				if cancel != nil {
 					cancel()
 				}
-				e.Board.MoveLongAlg(board.MoveFromString(lastMove))
+				e.Board.MoveUCI(lastMove)
 			}
 
 			if isWhite == (e.Board.IsWhite) {
@@ -318,7 +318,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				timeManagment.MeasureLag()
 				if lc.Ponder {
 					ctx, cancel = timeManagment.GetPonderContext()
-					umove := e.Board.MoveLongAlg(ponder)
+					umove := e.Board.MakeMove(ponder)
 					e.GetMove(ctx, &pv, true)
 					umove()
 				}

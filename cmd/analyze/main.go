@@ -39,6 +39,6 @@ func main() {
 	pv := []board.Move{}
 	move, ponder := e.GetMove(ctx, &pv, false)
 	defer cancel()
-	b.MoveLongAlg(move)
+	b.MakeMove(move)
 	fmt.Println("bestmove", move, "ponder", ponder, time.Since(start))
 }

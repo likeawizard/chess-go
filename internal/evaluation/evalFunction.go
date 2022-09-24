@@ -22,17 +22,17 @@ var (
 	PieceWeights = [12]float32{1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
 )
 
-func getPieceSpecificScore(b *board.Board, piece uint8, c board.Square, side int) int {
-	switch piece {
-	case board.P, board.P + 6:
+func getPieceSpecificScore(b *board.Board, pieceType int, c board.Square, side int) int {
+	switch pieceType {
+	case board.PAWNS:
 		return getPawnScore(b, c, side)
-	case board.B, board.B + 6:
+	case board.BISHOPS:
 		return getBishopDiagScore(c)
-	case board.N, board.N + 6:
+	case board.KNIGHTS:
 		return getKnightPositionScore(c)
-	case board.R, board.R + 6:
+	case board.ROOKS:
 		return rookEval(b, c, side)
-	case board.K, board.K + 6:
+	case board.KINGS:
 		return taperedKingEval(b, c, side)
 	default:
 		return 0
@@ -69,6 +69,7 @@ func IsProtected(b *board.Board, sq board.Square, side int) bool {
 	return board.PawnAttacks[side^1][sq]^b.Pieces[side][board.PAWNS] != 0
 }
 
+// TODO: create a lookup table for files to avoid branching
 func IsDoubled(b *board.Board, sq board.Square, side int) bool {
 	file := sq % 8
 	fileMask := board.BBoard(0)
@@ -121,30 +122,9 @@ func IsIsolated(b *board.Board, sq board.Square, side int) bool {
 }
 
 // Has no opponent opposing pawns in front (same or neighbor files)
+// TODO: stub
 func IsPassed(b *board.Board, sq board.Square, side int) bool {
-	pawn := uint8(1)
-	direction := board.Square(-1)
-	if side == board.WHITE {
-		direction = 1
-		pawn = 7
-	}
-	file := sq % 8
-	for rank := (sq / 8) + direction; rank < 8 && rank > 0; rank += direction {
-		target := file + rank*8
-		if b.Coords[target] == pawn {
-			return false
-		}
-
-		if file != 7 && b.Coords[target+1] == pawn {
-			return false
-		}
-
-		if file != 0 && b.Coords[target-1] == pawn {
-			return false
-		}
-	}
-
-	return true
+	return false
 }
 
 func getPawnAdvancement(c board.Square, side int) int {
@@ -224,56 +204,48 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 		} else {
 			return math.MaxInt
 		}
-		//Stale mate = 0 score
+		//Stalemate = 0 score
 	} else if len(all) == 0 {
 		return 0
 	}
 
-	whitePieces := b.GetPieces(true)
-	blackPieces := b.GetPieces(false)
 	var eval, pieceEval int = 0, 0
 
 	// TODO: ensure no move gen is dependent on b.IsWhite internally
-	isWhite := b.IsWhite
-	b.IsWhite = true
-	for _, piece := range whitePieces {
-		pieceVal := b.Coords[piece]
-		// TODO: eval for pinned pieces?
-		moves := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, board.WHITE)
-		eval += pieceEval
+	var side = -1
+	for color := board.WHITE; color <= board.BLACK; color++ {
+		side *= -1
+		for pieceType := board.PAWNS; pieceType <= board.KINGS; pieceType++ {
+			pieces := b.Pieces[color][pieceType]
+			for pieces > 0 {
+				piece := pieces.PopLS1B()
+				pieceEval = getPieceWeight(pieceType) + getPieceSpecificScore(b, pieceType, board.Square(piece), board.WHITE)
+				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
+				// pieceEval += + len(moves)*weights.Moves.Move
+				eval += side * pieceEval
+			}
+		}
 	}
 
-	b.IsWhite = false
-	for _, piece := range blackPieces {
-		pieceVal := b.Coords[piece]
-		moves := b.GetMovesForPiece(piece, 0, 0)
-		pieceEval = getPieceWeight(pieceVal) + len(moves)*weights.Moves.Move + getPieceSpecificScore(b, pieceVal, piece, board.BLACK)
-		eval -= pieceEval
-	}
-
-	b.IsWhite = isWhite
-	e.Evaluations++
 	return eval
 }
 
+// Determine the game phase as a sliding factor between opening and endgame
+// https://www.chessprogramming.org/Tapered_Eval#Implementation_example
 func getGamePhase(b *board.Board) (phase int) {
 	phase = 24
-	isWhite := true
 
-	for i := 0; i < 2; i++ {
-		pieces := b.GetPieces(isWhite)
-		for _, piece := range pieces {
-			switch piece % 6 {
-			case 2, 3:
-				phase -= 1
-			case 4:
-				phase -= 2
-			case 5:
-				phase -= 4
+	for color := board.WHITE; color <= board.BLACK; color++ {
+		for pieceType := board.PAWNS; pieceType <= board.KINGS; pieceType++ {
+			switch pieceType {
+			case board.BISHOPS, board.KINGS:
+				phase -= b.Pieces[color][pieceType].Count()
+			case board.ROOKS:
+				phase -= 2 * b.Pieces[color][pieceType].Count()
+			case board.QUEENS:
+				phase -= 4 * b.Pieces[color][pieceType].Count()
 			}
 		}
-		isWhite = !isWhite
 	}
 
 	phase = (phase * 268) / 24
@@ -281,6 +253,7 @@ func getGamePhase(b *board.Board) (phase int) {
 	return
 }
 
+// TODO: try branchless: eliminate min/max and use branchless abs()
 func distCenter(sq board.Square) int {
 	c := int(sq)
 	return Max(3-c/8, c/8-4) + Max(3-c%8, c%8-4)
@@ -291,33 +264,24 @@ func distSqares(us, them board.Square) int {
 	return Max((u-t)/8, (t-u)/8) + Max((u-t)%8, (t-u)%8)
 }
 
+// King safety score as a measure of distance from the board center and the number of adjacent enemy pieces and friendly pieces
+// TODO: naive initial approach
+// use board direction to value own pieces: i.e. a King in front of 3 pawns is not the same as a king behind 3 pawns
+// consider using opponent piece attacks around the king instead of actual pieces. use piece weights for opponent threat levels: a queen near our king should be a larger concern than a bishop
 func getKingSafety(b *board.Board, king board.Square, side int) (kingSafety int) {
-	// direction to determine if friendly pieces are in front or behind king
-	// for white discount friendly pieces at -7, -8, -9 and same for black with 7, 8, 9
-	direction := board.Square(6)
-	if side == board.WHITE {
-		direction = -6
-	}
-	c := int(king)
 	kingSafety += 2 * distCenter(king)
 
-	for i := 0; i < 8; i++ {
-		target := king + board.Compass[i]
-		if board.CompassBlock[c][i] == 0 || b.Coords[target] == 0 {
-			continue
-		}
-		if b.IsOpponentPiece(side == board.WHITE, target) {
-			kingSafety -= 15
-		} else if (side == board.WHITE && board.Compass[i] > direction) || (side == board.BLACK && board.Compass[i] < direction) {
-			kingSafety += 5
-		}
-	}
+	numFriendly := board.KingAttacks[king] & b.Occupancy[side]
+	numOpponent := board.KingAttacks[king] & b.Occupancy[side^1]
+
+	kingSafety += 5*numFriendly.Count() - 15*numOpponent.Count()
+
 	return
 }
 
 func getKingActivity(b *board.Board, king board.Square, side int) (kingActivity int) {
-	oppKing := b.GetKing(side != board.WHITE)
-	kingActivity = -(distCenter(king) + distSqares(king, oppKing))
+	oppKing := b.Pieces[b.Side^1][board.KINGS].LS1B()
+	kingActivity = -(distCenter(king) + distSqares(king, board.Square(oppKing)))
 	return
 }
 
@@ -327,48 +291,50 @@ func taperedKingEval(b *board.Board, king board.Square, side int) int {
 
 }
 
+// Evaluation for rooks - connected & (semi)open files
+// TODO: stub
 func rookEval(b *board.Board, rook board.Square, side int) (rookScore int) {
-	offset := uint8(6)
-	if side == board.WHITE {
-		offset = 0
-	}
-	hasOwnPawn, hasOppPawn, connected := false, false, false
-	for dirIdx := 0; dirIdx < 4; dirIdx++ {
-		for i := board.Square(1); i <= board.CompassBlock[rook][dirIdx]; i++ {
-			target := rook + i*board.Compass[dirIdx]
-
-			if b.Coords[target] == 0 {
-				continue
-			}
-			if b.Coords[target] == board.R+offset {
-				connected = true
-			}
-
-			//Only look at N and S
-			if dirIdx > 2 {
-				continue
-			}
-
-			//Check for own or opponent pawns
-			switch b.Coords[target] {
-			case 7 - offset:
-				hasOppPawn = true
-			case 1 + offset:
-				hasOwnPawn = true
-			}
-		}
-	}
-
-	if !hasOwnPawn && !hasOppPawn {
-		rookScore += 15
-	} else if hasOppPawn && !hasOwnPawn {
-		rookScore += 10
-	}
-
-	if connected {
-		rookScore += 10
-	}
-
 	return
+	// offset := uint8(6)
+	// if side == board.WHITE {
+	// 	offset = 0
+	// }
+	// hasOwnPawn, hasOppPawn, connected := false, false, false
+	// for dirIdx := 0; dirIdx < 4; dirIdx++ {
+	// 	for i := board.Square(1); i <= board.CompassBlock[rook][dirIdx]; i++ {
+	// 		target := rook + i*board.Compass[dirIdx]
 
+	// 		if b.Coords[target] == 0 {
+	// 			continue
+	// 		}
+	// 		if b.Coords[target] == board.R+offset {
+	// 			connected = true
+	// 		}
+
+	// 		//Only look at N and S
+	// 		if dirIdx > 2 {
+	// 			continue
+	// 		}
+
+	// 		//Check for own or opponent pawns
+	// 		switch b.Coords[target] {
+	// 		case 7 - offset:
+	// 			hasOppPawn = true
+	// 		case 1 + offset:
+	// 			hasOwnPawn = true
+	// 		}
+	// 	}
+	// }
+
+	// if !hasOwnPawn && !hasOppPawn {
+	// 	rookScore += 15
+	// } else if hasOppPawn && !hasOwnPawn {
+	// 	rookScore += 10
+	// }
+
+	// if connected {
+	// 	rookScore += 10
+	// }
+
+	// return
 }

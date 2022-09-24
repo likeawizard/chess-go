@@ -29,7 +29,7 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 	e.Evaluations = 0
 	var best, ponder board.Move
 	var ok bool
-	all := e.Board.GetLegalMoves()
+	all := e.Board.MoveGen()
 	if len(all) == 1 {
 		best = all[0]
 	} else {
@@ -42,6 +42,7 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 	return best, ponder
 }
 
+// TODO: try branchless optimization
 func Max(a, b int) int {
 	if a > b {
 		return a
