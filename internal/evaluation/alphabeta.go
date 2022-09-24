@@ -138,7 +138,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 	var line, bestLine []board.Move
 	color := 1
 	alpha, beta := -math.MaxInt, math.MaxInt
-	if !e.Board.IsWhite {
+	if e.Board.Side != board.WHITE {
 		color = -color
 	}
 	done, ok := false, true

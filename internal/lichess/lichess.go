@@ -266,7 +266,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 			}
 			timeManagment = *NewTimeManagement(gs, isWhite)
 
-			if isWhite == (e.Board.IsWhite) {
+			if isWhite == (e.Board.Side == board.WHITE) {
 				fmt.Printf("My turn in %s. (FEN: %s) Thinking...\n", game.GameID, e.Board.ExportFEN())
 				fmt.Printf("TimeManagment: time to think:%v, effective lag: %v\n", timeManagment.AllotTime(), timeManagment.Lag)
 				ctx, cancel := timeManagment.GetTimeoutContext()
@@ -293,7 +293,7 @@ func (lc *LichessConnector) ListenToGame(game Game) {
 				e.Board.MoveUCI(lastMove)
 			}
 
-			if isWhite == (e.Board.IsWhite) {
+			if isWhite == (e.Board.Side == board.WHITE) {
 				if lc.Ponder {
 					if lastMove == ponder.String() {
 						fmt.Printf("Ponder hit with: %s PV: %v\n", ponder, pv)

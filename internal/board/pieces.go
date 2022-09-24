@@ -29,7 +29,7 @@ var PieceWeights = [13]float32{0, 1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 
 func (b *Board) getMoveValue(move Move) (value float32) {
 
 	dir := float32(-1)
-	if !b.IsWhite {
+	if b.Side != WHITE {
 		dir *= -1
 	}
 

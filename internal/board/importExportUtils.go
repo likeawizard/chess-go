@@ -52,7 +52,6 @@ func (b *Board) ImportFEN(fen string) error {
 	var err error
 	b.parsePieces(position)
 
-	b.IsWhite = sideToMove[0] == WhiteToMove
 	if sideToMove[0] == WhiteToMove {
 		b.Side = WHITE
 	} else {
