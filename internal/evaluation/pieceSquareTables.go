@@ -1,14 +1,24 @@
 package eval
 
+import "github.com/likeawizard/chess-go/internal/board"
+
 // Piece-square-tables used for positional evaluation of piece placement
 // The tables are asymmetrical and are viewed from white's perspective.
 
-// Flip rank around for accessing piece-square-tables from black's perspecitve
-func invertCoord(sq int) int {
-	return (8-sq/8)*8 + sq%8
+func init() {
+	invert := func(sq int) int {
+		return (7-sq/8)*8 + sq%8
+	}
+	for piece := board.PAWNS; piece <= board.KINGS; piece++ {
+		for sq := 0; sq < 64; sq++ {
+			PST[board.BLACK][piece][sq] = PST[board.WHITE][piece][invert(sq)]
+		}
+	}
 }
 
-var PawnPST [64]int = [64]int{
+var PST = [2][6][64]int{{pawnPST, bishopPST, kingPST, rookPST, queenPST, kingPST}}
+
+var pawnPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -19,7 +29,7 @@ var PawnPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 }
 
-var BishopPST [64]int = [64]int{
+var bishopPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 1, 0, 0, 1, 0, 0,
@@ -30,7 +40,7 @@ var BishopPST [64]int = [64]int{
 	0, 0, -1, 0, 0, -1, 0, 0,
 }
 
-var KnightPST [64]int = [64]int{
+var knightPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -41,7 +51,7 @@ var KnightPST [64]int = [64]int{
 	0, -1, 0, 0, 0, 0, -1, 0,
 }
 
-var RookPST [64]int = [64]int{
+var rookPST [64]int = [64]int{
 	0, 0, 2, 3, 3, 0, 0, 0,
 	5, 5, 5, 5, 5, 5, 5, 5,
 	0, 0, 2, 3, 3, 2, 0, 0,
@@ -52,7 +62,7 @@ var RookPST [64]int = [64]int{
 	0, 0, 2, 3, 3, 2, 0, 0,
 }
 
-var QueenPST [64]int = [64]int{
+var queenPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -63,7 +73,7 @@ var QueenPST [64]int = [64]int{
 	0, 0, 0, 3, 0, 0, 0, 0,
 }
 
-var KingPST [64]int = [64]int{
+var kingPST [64]int = [64]int{
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,

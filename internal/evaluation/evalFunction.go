@@ -18,29 +18,12 @@ func init() {
 	}
 }
 
-var (
-	PieceWeights = [12]float32{1, 3.2, 2.9, 5, 9, 0, -1, -3.2, -2.9, -5, -9, 0}
-)
+type pieceEvalFn func(*board.Board, board.Square, int) int
 
-func getPieceSpecificScore(b *board.Board, pieceType int, c board.Square, side int) int {
-	switch pieceType {
-	case board.PAWNS:
-		return getPawnScore(b, c, side)
-	case board.BISHOPS:
-		return getBishopDiagScore(c)
-	case board.KNIGHTS:
-		return getKnightPositionScore(c)
-	case board.ROOKS:
-		return rookEval(b, c, side)
-	case board.KINGS:
-		return taperedKingEval(b, c, side)
-	default:
-		return 0
-	}
-}
+var pieceEvals = [6]pieceEvalFn{pawnEval, bishopEval, knightEval, rookEval, queenEval, kingEval}
 
-func getPawnScore(b *board.Board, sq board.Square, side int) (value int) {
-	value = 0
+func pawnEval(b *board.Board, sq board.Square, side int) int {
+	value := 0
 	if IsProtected(b, sq, side) {
 		value += weights.Pawn.Protected
 	}
@@ -60,7 +43,11 @@ func getPawnScore(b *board.Board, sq board.Square, side int) (value int) {
 
 	value += advancmentValue * getPawnAdvancement(sq, side)
 
-	return
+	return value
+}
+
+func queenEval(b *board.Board, sq board.Square, side int) int {
+	return 0
 }
 
 // TODO: combine all pawn functions in one with multi value return
@@ -146,7 +133,7 @@ func getCentralPawn(sq board.Square) int {
 	}
 }
 
-func getKnightPositionScore(sq board.Square) int {
+func knightEval(b *board.Board, sq board.Square, side int) int {
 	switch {
 	case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
 		return weights.Knight.Center22
@@ -189,8 +176,8 @@ func getMinorDiagScoreDR(c board.Square) int {
 	return 0
 }
 
-func getBishopDiagScore(c board.Square) int {
-	return getMajorDiagScoreDR(c) + getMajorDiagScoreUR(c) + getMinoDiagScoreUR(c) + getMinorDiagScoreDR(c)
+func bishopEval(b *board.Board, sq board.Square, side int) int {
+	return getMajorDiagScoreDR(sq) + getMajorDiagScoreUR(sq) + getMinoDiagScoreUR(sq) + getMinorDiagScoreDR(sq)
 }
 
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
@@ -220,7 +207,8 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 			pieces := b.Pieces[color][pieceType]
 			for pieces > 0 {
 				piece := pieces.PopLS1B()
-				pieceEval = getPieceWeight(pieceType) + getPieceSpecificScore(b, pieceType, board.Square(piece), board.WHITE)
+				pieceEval = getPieceWeight(pieceType) + pieceEvals[pieceType](b, board.Square(piece), color)
+				pieceEval += PST[color][pieceType][piece]
 				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
 				// pieceEval += + len(moves)*weights.Moves.Move
 				eval += side * pieceEval
@@ -286,7 +274,7 @@ func getKingActivity(b *board.Board, king board.Square, side int) (kingActivity 
 	return
 }
 
-func taperedKingEval(b *board.Board, king board.Square, side int) int {
+func kingEval(b *board.Board, king board.Square, side int) int {
 	phase := getGamePhase(b)
 	return (getKingSafety(b, king, side)*(256-phase) + getKingActivity(b, king, side)*phase) / 256
 
