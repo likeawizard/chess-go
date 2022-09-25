@@ -16,6 +16,7 @@ func init() {
 		fmt.Println("Unable to load weights")
 		panic(1)
 	}
+	initPieceWeightLUT()
 }
 
 type pieceEvalFn func(*board.Board, board.Square, int) int
@@ -176,8 +177,15 @@ func getMinorDiagScoreDR(c board.Square) int {
 	return 0
 }
 
+func bishopPairEval(b *board.Board, side int) int {
+	if b.Pieces[side][board.BISHOPS].Count() == 2 {
+		return 50
+	}
+	return 0
+}
+
 func bishopEval(b *board.Board, sq board.Square, side int) int {
-	return getMajorDiagScoreDR(sq) + getMajorDiagScoreUR(sq) + getMinoDiagScoreUR(sq) + getMinorDiagScoreDR(sq)
+	return bishopPairEval(b, side) + getMajorDiagScoreDR(sq) + getMajorDiagScoreUR(sq) + getMinoDiagScoreUR(sq) + getMinorDiagScoreDR(sq)
 }
 
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
@@ -204,11 +212,12 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	var side = -1
 	for color := board.WHITE; color <= board.BLACK; color++ {
 		side *= -1
+		numPawns := b.Pieces[color][board.PAWNS].Count()
 		for pieceType := board.PAWNS; pieceType <= board.KINGS; pieceType++ {
 			pieces := b.Pieces[color][pieceType]
 			for pieces > 0 {
 				piece := pieces.PopLS1B()
-				pieceEval = getPieceWeight(pieceType) + pieceEvals[pieceType](b, board.Square(piece), color)
+				pieceEval = PieceWeights[pieceType] + PiecePawnBonus[pieceType][numPawns]
 				// Tapered eval - more bias towards PST in the opening and more bias to individual eval functions towards the endgame
 				pieceEval += (PST[color][pieceType][piece]*(256-phase) + pieceEvals[pieceType](b, board.Square(piece), color)*phase) / 256
 				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
