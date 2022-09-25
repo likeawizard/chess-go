@@ -198,6 +198,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	}
 
 	var eval, pieceEval int = 0, 0
+	phase := getGamePhase(b)
 
 	// TODO: ensure no move gen is dependent on b.IsWhite internally
 	var side = -1
@@ -208,7 +209,8 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 			for pieces > 0 {
 				piece := pieces.PopLS1B()
 				pieceEval = getPieceWeight(pieceType) + pieceEvals[pieceType](b, board.Square(piece), color)
-				pieceEval += PST[color][pieceType][piece]
+				// Tapered eval - more bias towards PST in the opening and more bias to individual eval functions towards the endgame
+				pieceEval += (PST[color][pieceType][piece]*(256-phase) + pieceEvals[pieceType](b, board.Square(piece), color)*phase) / 256
 				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
 				// pieceEval += + len(moves)*weights.Moves.Move
 				eval += side * pieceEval
