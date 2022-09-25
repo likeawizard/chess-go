@@ -1,9 +1,9 @@
 pieces:
   pawn: 100
-  knight: 290
-  bishop: 320
+  knight: 325
+  bishop: 325
   rook: 500
-  queen: 900
+  queen: 975
   king: 0
 
 knight:

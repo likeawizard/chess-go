@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/likeawizard/chess-go/internal/board"
@@ -8,6 +9,18 @@ import (
 )
 
 const WEIGHT_PATH = "./weights/weights.yml"
+
+var PieceWeights = [6]int{}
+
+// Based on L. Kaufman - rook and knight values are adjusted by the number of pawns on the board
+var PiecePawnBonus = [6][9]int{
+	{},
+	{},
+	{-25, -19, -13, -6, 0, 6, 13, 19, 25},
+	{50, 37, 25, 12, 0, -12, -25, -37, -50},
+	{},
+	{},
+}
 
 func LoadWeights() (*Weights, error) {
 	var weights Weights
@@ -25,21 +38,14 @@ func LoadWeights() (*Weights, error) {
 	return &weights, nil
 }
 
-func getPieceWeight(piece int) int {
-	switch piece {
-	case board.PAWNS:
-		return weights.Pieces.Pawn
-	case board.BISHOPS:
-		return weights.Pieces.Bishop
-	case board.KNIGHTS:
-		return weights.Pieces.Knight
-	case board.ROOKS:
-		return weights.Pieces.Rook
-	case board.QUEENS:
-		return weights.Pieces.Queen
-	default:
-		return 0
-	}
+func initPieceWeightLUT() {
+	PieceWeights[board.PAWNS] = weights.Pieces.Pawn
+	PieceWeights[board.BISHOPS] = weights.Pieces.Bishop
+	PieceWeights[board.KNIGHTS] = weights.Pieces.Knight
+	PieceWeights[board.ROOKS] = weights.Pieces.Rook
+	PieceWeights[board.QUEENS] = weights.Pieces.Queen
+	PieceWeights[board.KINGS] = weights.Pieces.King
+	fmt.Println(PieceWeights)
 }
 
 type Weights struct {
