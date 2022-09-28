@@ -11,6 +11,7 @@ var SquareBitboards [64]BBoard
 var PawnAttacks [2][64]BBoard
 var KnightAttacks [64]BBoard
 var KingAttacks [64]BBoard
+var KingSafetyMask [2][64]BBoard
 var BishopOccBitCount [64]int
 var RookOccBitCount [64]int
 var BishopMagics [64]BBoard
@@ -20,12 +21,21 @@ var RookAttackMasks [64]BBoard
 var BishopAttacks [64][4096]BBoard
 var RookAttacks [64][4096]BBoard
 
+var PassedPawns [2][64]BBoard
+var IsolatedPawns [64]BBoard
+var DoubledPawns [64]BBoard
+
+const MajorDiag BBoard = 9314046665258451585
+const MinorDiag BBoard = 4946458877011600706
+
 func init() {
 	InitSquares()
 	InitOccBitCounts()
 	InitPawnAttacks()
 	InitKnightAttacks()
 	InitKingAttacks()
+	InitKingSafetyMasks()
+	InitPawnStrucutreMasks()
 	InitMagics()
 	InitSliders()
 }
@@ -63,6 +73,109 @@ func InitPawnAttacks() {
 	for sq := 0; sq < 64; sq++ {
 		PawnAttacks[WHITE][sq] = pawnAttack(sq, true)
 		PawnAttacks[BLACK][sq] = pawnAttack(sq, false)
+	}
+}
+
+func InitPawnStrucutreMasks() {
+	isloatedMask := func(sq int) BBoard {
+		file := sq % 8
+		switch file {
+		case 0:
+			return BFile
+		case 1:
+			return AFile | CFile
+		case 2:
+			return DFile | BFile
+		case 3:
+			return EFile | CFile
+		case 4:
+			return DFile | FFile
+		case 5:
+			return EFile | GFile
+		case 6:
+			return FFile | HFile
+		default:
+			return GFile
+		}
+	}
+
+	doubledMask := func(sq int) BBoard {
+		file := sq % 8
+		var fileMask BBoard
+		switch file {
+		case 0:
+			fileMask = AFile
+		case 1:
+			fileMask = BFile
+		case 2:
+			fileMask = CFile
+		case 3:
+			fileMask = DFile
+		case 4:
+			fileMask = EFile
+		case 5:
+			fileMask = FFile
+		case 6:
+			fileMask = GFile
+		case 7:
+			fileMask = HFile
+		}
+		return fileMask &^ (1 << sq)
+	}
+
+	passedMask := func(sq, color int) BBoard {
+		rank := sq / 8
+		mask := IsolatedPawns[sq] | DoubledPawns[sq]
+		behindMask := func(rank, color int) BBoard {
+			if color == WHITE {
+				switch rank {
+				case 0:
+					return ^BBoard(0)
+				case 1:
+					return Rank1 | Rank2 | Rank3 | Rank4 | Rank5 | Rank6 | Rank7
+				case 2:
+					return Rank1 | Rank2 | Rank3 | Rank4 | Rank5 | Rank6
+				case 3:
+					return Rank1 | Rank2 | Rank3 | Rank4 | Rank5
+				case 4:
+					return Rank1 | Rank2 | Rank3 | Rank4
+				case 5:
+					return Rank1 | Rank2 | Rank3
+				case 6:
+					return Rank1 | Rank2
+				default:
+					return Rank1
+				}
+			} else {
+				switch rank {
+				case 0:
+					return Rank8
+				case 1:
+					return Rank8 | Rank7
+				case 2:
+					return Rank8 | Rank7 | Rank6
+				case 3:
+					return Rank8 | Rank7 | Rank6 | Rank5
+				case 4:
+					return Rank8 | Rank7 | Rank6 | Rank5 | Rank4
+				case 5:
+					return Rank8 | Rank7 | Rank6 | Rank5 | Rank4 | Rank3
+				case 6:
+					return Rank8 | Rank7 | Rank6 | Rank5 | Rank4 | Rank3 | Rank2
+				default:
+					return ^BBoard(0)
+				}
+			}
+		}
+
+		return mask & ^behindMask(rank, color)
+	}
+
+	for sq := 0; sq < 64; sq++ {
+		IsolatedPawns[sq] = isloatedMask(sq)
+		DoubledPawns[sq] = doubledMask(sq)
+		PassedPawns[WHITE][sq] = passedMask(sq, WHITE)
+		PassedPawns[BLACK][sq] = passedMask(sq, BLACK)
 	}
 }
 
@@ -124,6 +237,46 @@ func InitKingAttacks() {
 	}
 	for sq := 0; sq < 64; sq++ {
 		KingAttacks[sq] = kingAttack(sq)
+	}
+}
+
+// King safety masks ar similar to KingAttacks but do not cover squares behind the king. Only pieces in front of the kind attribute to safety
+func InitKingSafetyMasks() {
+
+	safetyMask := func(sq int, side int) BBoard {
+		var piece, attacks BBoard
+		piece.Set(sq)
+
+		if piece&HFile == 0 {
+			if side == WHITE {
+				attacks |= piece >> 8
+				attacks |= piece << 1
+				attacks |= piece >> 7
+			} else {
+				attacks |= piece << 8
+				attacks |= piece << 1
+				attacks |= piece << 9
+			}
+		}
+
+		if piece&AFile == 0 {
+			if side == WHITE {
+				attacks |= piece >> 8
+				attacks |= piece >> 9
+				attacks |= piece >> 1
+			} else {
+				attacks |= piece << 8
+				attacks |= piece >> 1
+				attacks |= piece << 7
+			}
+		}
+
+		return attacks
+	}
+	for color := WHITE; color <= BLACK; color++ {
+		for sq := 0; sq < 64; sq++ {
+			KingSafetyMask[color][sq] = safetyMask(sq, color)
+		}
 	}
 }
 

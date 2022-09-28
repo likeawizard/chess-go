@@ -2,7 +2,6 @@ package eval
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/likeawizard/chess-go/internal/board"
 )
@@ -48,7 +47,7 @@ func pawnEval(b *board.Board, sq board.Square, side int) int {
 }
 
 func queenEval(b *board.Board, sq board.Square, side int) int {
-	return 0
+	return board.GetQueenAttacks(int(sq), b.Occupancy[board.BOTH]).Count() * weights.Moves.Move
 }
 
 // TODO: combine all pawn functions in one with multi value return
@@ -59,60 +58,18 @@ func IsProtected(b *board.Board, sq board.Square, side int) bool {
 
 // TODO: create a lookup table for files to avoid branching
 func IsDoubled(b *board.Board, sq board.Square, side int) bool {
-	file := sq % 8
-	fileMask := board.BBoard(0)
-	switch file {
-	case 0:
-		fileMask = board.AFile
-	case 1:
-		fileMask = board.BFile
-	case 2:
-		fileMask = board.CFile
-	case 3:
-		fileMask = board.DFile
-	case 4:
-		fileMask = board.EFile
-	case 5:
-		fileMask = board.FFile
-	case 6:
-		fileMask = board.GFile
-	case 7:
-		fileMask = board.HFile
-	}
-
-	return (b.Pieces[side][board.PAWNS] & fileMask).Count() > 1
+	return b.Pieces[side][board.PAWNS]&board.DoubledPawns[sq] != 0
 }
 
 // Has no friendly pawns on neighboring files
 func IsIsolated(b *board.Board, sq board.Square, side int) bool {
-	file := sq % 8
-	fileMask := board.BBoard(0)
-	switch file {
-	case 0:
-		fileMask = board.BFile
-	case 1:
-		fileMask = board.AFile | board.CFile
-	case 2:
-		fileMask = board.DFile | board.BFile
-	case 3:
-		fileMask = board.EFile | board.CFile
-	case 4:
-		fileMask = board.DFile | board.FFile
-	case 5:
-		fileMask = board.EFile | board.GFile
-	case 6:
-		fileMask = board.FFile | board.HFile
-	case 7:
-		fileMask = board.GFile
-	}
-
-	return (b.Pieces[side][board.PAWNS] & fileMask).Count() > 0
+	return b.Pieces[side][board.PAWNS]&board.IsolatedPawns[sq] == 0
 }
 
 // Has no opponent opposing pawns in front (same or neighbor files)
 // TODO: stub
 func IsPassed(b *board.Board, sq board.Square, side int) bool {
-	return false
+	return b.Pieces[side][board.PAWNS]&board.PassedPawns[side][sq] == 0
 }
 
 func getPawnAdvancement(c board.Square, side int) int {
@@ -135,76 +92,34 @@ func getCentralPawn(sq board.Square) int {
 }
 
 func knightEval(b *board.Board, sq board.Square, side int) int {
-	switch {
-	case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
-		return weights.Knight.Center22
-	case (sq/8 == 2 || sq/8 == 5) && (sq%8 == 2 || sq%8 == 5):
-		return weights.Knight.Center44
-	case (sq/8 == 1 || sq/8 == 6) && (sq%8 == 1 || sq%8 == 6):
-		return weights.Knight.InnerRim
-	default:
-		return weights.Knight.OuterRim
-	}
+	return board.KnightAttacks[sq].Count() * weights.Moves.Move
+	// switch {
+	// case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
+	// 	return weights.Knight.Center22
+	// case (sq/8 == 2 || sq/8 == 5) && (sq%8 == 2 || sq%8 == 5):
+	// 	return weights.Knight.Center44
+	// case (sq/8 == 1 || sq/8 == 6) && (sq%8 == 1 || sq%8 == 6):
+	// 	return weights.Knight.InnerRim
+	// default:
+	// 	return weights.Knight.OuterRim
+	// }
 
 }
-
-func getMajorDiagScoreUR(c board.Square) int {
-	if c%9 == 0 {
-		return weights.Bishop.MajorDiag
-	}
-	return 0
-}
-
-func getMajorDiagScoreDR(c board.Square) int {
-	if c%7 == 0 {
-		return weights.Bishop.MajorDiag
-	}
-	return 0
-}
-
-func getMinoDiagScoreUR(c board.Square) int {
-	if c%9 == 1 || c%9 == 8 {
-		return weights.Bishop.MinorDiag
-	}
-	return 0
-}
-
-func getMinorDiagScoreDR(c board.Square) int {
-	if c%7 == 6 || c%7 == 1 {
-		return weights.Bishop.MinorDiag
-	}
-
-	return 0
-}
-
 func bishopPairEval(b *board.Board, side int) int {
-	if b.Pieces[side][board.BISHOPS].Count() == 2 {
+	if b.Pieces[side][board.BISHOPS].Count() > 1 {
 		return 50
 	}
 	return 0
 }
 
 func bishopEval(b *board.Board, sq board.Square, side int) int {
-	return bishopPairEval(b, side) + getMajorDiagScoreDR(sq) + getMajorDiagScoreUR(sq) + getMinoDiagScoreUR(sq) + getMinorDiagScoreDR(sq)
+	return bishopPairEval(b, side) + board.GetBishopAttacks(int(sq), b.Occupancy[board.BOTH]).Count()*weights.Moves.Move +
+		(board.SquareBitboards[sq]&board.MajorDiag).Count()*weights.Bishop.MajorDiag +
+		(board.SquareBitboards[sq]&board.MinorDiag).Count()*weights.Bishop.MinorDiag
 }
 
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	e.Stats.evals++
-	inCheck := b.IsChecked(b.Side)
-	all := b.MoveGen()
-
-	//Mate = +/-Inf score
-	if inCheck && len(all) == 0 {
-		if b.Side == board.WHITE {
-			return -math.MaxInt
-		} else {
-			return math.MaxInt
-		}
-		//Stalemate = 0 score
-	} else if len(all) == 0 {
-		return 0
-	}
-
 	var eval, pieceEval int = 0, 0
 	phase := getGamePhase(b)
 
@@ -217,9 +132,10 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 			pieces := b.Pieces[color][pieceType]
 			for pieces > 0 {
 				piece := pieces.PopLS1B()
-				pieceEval = PieceWeights[pieceType] + PiecePawnBonus[pieceType][numPawns]
+				pieceEval = PieceWeights[pieceType]
 				// Tapered eval - more bias towards PST in the opening and more bias to individual eval functions towards the endgame
-				pieceEval += (PST[color][pieceType][piece]*(256-phase) + pieceEvals[pieceType](b, board.Square(piece), color)*phase) / 256
+				pieceEval += (PST[color][pieceType][piece]*(256-phase) + (PiecePawnBonus[pieceType][numPawns])*phase) / 256
+				pieceEval += pieceEvals[pieceType](b, board.Square(piece), color)
 				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
 				// pieceEval += + len(moves)*weights.Moves.Move
 				eval += side * pieceEval
@@ -270,12 +186,7 @@ func distSqares(us, them board.Square) int {
 // consider using opponent piece attacks around the king instead of actual pieces. use piece weights for opponent threat levels: a queen near our king should be a larger concern than a bishop
 func getKingSafety(b *board.Board, king board.Square, side int) (kingSafety int) {
 	kingSafety += 2 * distCenter(king)
-
-	numFriendly := board.KingAttacks[king] & b.Occupancy[side]
-	numOpponent := board.KingAttacks[king] & b.Occupancy[side^1]
-
-	kingSafety += 5*numFriendly.Count() - 15*numOpponent.Count()
-
+	kingSafety += 5*(board.KingSafetyMask[side][king]&b.Occupancy[side]).Count() - 15*(board.KingAttacks[king]&b.Occupancy[side^1]).Count()
 	return
 }
 
@@ -293,7 +204,8 @@ func kingEval(b *board.Board, king board.Square, side int) int {
 
 // Evaluation for rooks - connected & (semi)open files
 // TODO: stub
-func rookEval(b *board.Board, rook board.Square, side int) (rookScore int) {
+func rookEval(b *board.Board, sq board.Square, side int) (rookScore int) {
+	rookScore = board.GetRookAttacks(int(sq), b.Occupancy[board.BOTH]).Count() * weights.Moves.Move
 	return
 	// offset := uint8(6)
 	// if side == board.WHITE {

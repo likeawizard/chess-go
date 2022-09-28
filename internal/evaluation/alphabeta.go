@@ -48,11 +48,14 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		}
 
 		all := e.Board.MoveGen()
-		e.Board.OrderMoves(pvMove, &all)
-
 		if len(all) == 0 {
-			return side * e.GetEvaluation(e.Board)
+			if e.Board.IsChecked(e.Board.Side) {
+				return -math.MaxInt
+			} else {
+				return 0
+			}
 		}
+		e.Board.OrderMoves(pvMove, &all)
 
 		var value int
 
@@ -107,12 +110,12 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		}
 
 		all := e.Board.MoveGenCaptures()
-		pvm := board.Move(0)
-		e.Board.OrderMoves(pvm, &all)
-
 		if len(all) == 0 {
 			return eval
 		}
+
+		pvm := board.Move(0)
+		e.Board.OrderMoves(pvm, &all)
 
 		var value int
 
