@@ -47,14 +47,8 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 			pvMoves = pvMoves[1:]
 		}
 
-		all := e.Board.MoveGen()
-		if len(all) == 0 {
-			if e.Board.IsChecked(e.Board.Side) {
-				return -math.MaxInt
-			} else {
-				return 0
-			}
-		}
+		all := e.Board.PseudoMoveGen()
+		legalMoves := 0
 		e.Board.OrderMoves(pvMove, &all)
 
 		var value int
@@ -63,6 +57,11 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		pv := []board.Move{}
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MakeMove(all[i])
+			if e.Board.IsChecked(e.Board.Side ^ 1) {
+				umove()
+				continue
+			}
+			legalMoves++
 			value = Max(value, -e.negamax(ctx, &pv, pvMoves, depth-1, -beta, -alpha, -side))
 			umove()
 
@@ -88,6 +87,14 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 			// 	e.TTable[e.Board.Hash] = tt
 			// }
 		}
+
+		if legalMoves == 0 {
+			if e.Board.IsChecked(e.Board.Side) {
+				return -math.MaxInt
+			} else {
+				return 0
+			}
+		}
 		return value
 	}
 }
@@ -109,10 +116,8 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 			alpha = eval
 		}
 
-		all := e.Board.MoveGenCaptures()
-		if len(all) == 0 {
-			return eval
-		}
+		all := e.Board.PseudoCaptureGen()
+		legalMoves := 0
 
 		pvm := board.Move(0)
 		e.Board.OrderMoves(pvm, &all)
@@ -122,6 +127,11 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		value = -math.MaxInt
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MakeMove(all[i])
+			if e.Board.IsChecked(e.Board.Side ^ 1) {
+				umove()
+				continue
+			}
+			legalMoves++
 			value = Max(value, -e.quiescence(ctx, -beta, -alpha, -side))
 			umove()
 			alpha = Max(value, alpha)
@@ -129,9 +139,25 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 				break
 			}
 		}
+		if legalMoves == 0 {
+			return eval
+		}
 		return value
 	}
 }
+
+// [100 325 325 500 975 10000]
+// 2022/09/29 12:49:06 maxprocs: Leaving GOMAXPROCS=12: CPU quota undefined
+// 2022/09/29 12:49:06 profile: cpu profiling enabled, /tmp/profile576563299/cpu.pprof
+// Depth: 1 (0.20) Move: [b1c3] (403.8knps, total: 21.0 (1.0 20.0), QN: 95%, evals: 95%)
+// Depth: 2 (0.09) Move: [b1c3 b8c6] (551.7knps, total: 112.0 (21.0 91.0), QN: 81%, evals: 81%)
+// Depth: 3 (0.11) Move: [b1c3 b8c6 g1f3] (1.0Mnps, total: 571.0 (60.0 511.0), QN: 89%, evals: 89%)
+// Depth: 4 (0.09) Move: [b1c3 b8c6 g1f3 g8f6] (671.7knps, total: 2.3k (524.0 1.8k), QN: 77%, evals: 77%)
+// Depth: 5 (0.11) Move: [b1c3 b8c6 g1f3 g8f6 f3g1] (787.3knps, total: 16.9k (1.5k 15.4k), QN: 91%, evals: 91%)
+// Depth: 6 (0.09) Move: [b1c3 b8c6 g1f3 g8f6 f3g1 f6g8] (431.0knps, total: 134.3k (13.8k 120.6k), QN: 89%, evals: 89%)
+// Depth: 7 (0.11) Move: [b1c3 b8c6 g1f3 g8f6 f3g1 f6g8 g1f3] (740.3knps, total: 1.0M (52.2k 972.6k), QN: 94%, evals: 94%)
+// Depth: 8 (0.09) Move: [b1c3 b8c6 g1f3 g8f6 f3g1 f6g8 g1f3 g8f6] (534.5knps, total: 10.8M (514.5k 10.3M), QN: 95%, evals: 95%)
+// ^C2022/09/29 12:52:34 profile: caught interrupt, stopping profiles
 
 // Iterative deepening search. Returns best move, ponder and ok if search succeeded.
 func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, silent bool) (board.Move, board.Move, bool) {
