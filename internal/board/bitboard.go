@@ -773,6 +773,12 @@ func (b *Board) MakeMove(move Move) func() {
 	if b.Side == WHITE {
 		direction = -8
 	}
+	if move.IsCapture() || move.Piece() == 1 {
+		b.HalfMoveCounter = 0
+	} else {
+		b.HalfMoveCounter++
+	}
+
 	b.EnPassantTarget = -1
 	bitboard := b.GetBitBoard(move.Piece(), move)
 	bitboard.Set(int(move.To()))
@@ -799,6 +805,9 @@ func (b *Board) MakeMove(move Move) func() {
 	b.Occupancy[BOTH] = b.Occupancy[WHITE] | b.Occupancy[BLACK]
 
 	b.updateCastlingRights(move)
+	if b.Side == BLACK {
+		b.FullMoveCounter++
+	}
 	b.Side ^= 1
 	return umove
 }
