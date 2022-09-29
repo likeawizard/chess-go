@@ -117,19 +117,6 @@ func (lc *LichessConnector) GetChallenges() ([]Challenge, error) {
 	}
 }
 
-func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
-	if ch.Variant.Key != "standard" {
-		return false, "variant"
-	}
-	// if ch.Challenger.Title == "BOT" {
-	// 	return false, "noBot"
-	// }
-	if ch.TimeControl.Type == "unlimited" || ch.TimeControl.Type == "correspondence" {
-		return false, "tooSlow"
-	}
-	return true, ""
-}
-
 func (lc *LichessConnector) HandleChallenges(ch []Challenge) {
 	for _, c := range ch {
 		if ok, reason := lc.ShouldAccept(c); ok {
