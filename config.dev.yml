@@ -11,6 +11,17 @@ engine:
 lichess:
   apiToken: ""
   ponder: false
+  challengePolicy:
+    accept: true
+    acceptBot: true
+    tc:
+      - bullet
+      - blitz
+      - rapid
+      - classical
+    variant: 
+      - standard
+    rated: true
 
 render:
   mode: "simple"

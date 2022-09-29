@@ -32,8 +32,17 @@ type Render struct {
 }
 
 type Lichess struct {
-	APIToken string `yaml:"apiToken"`
-	Ponder   bool   `yaml:"ponder"`
+	APIToken        string          `yaml:"apiToken"`
+	Ponder          bool            `yaml:"ponder"`
+	ChallengePolicy ChallengePolicy `yaml:"challengePolicy"`
+}
+
+type ChallengePolicy struct {
+	Accept      bool     `yaml:"accept"`
+	AcceptBot   bool     `yaml:"acceptBot"`
+	TimeControl []string `yaml:"tc"`
+	Variant     []string `yaml:"variant"`
+	Rated       bool     `yaml:"rated"`
 }
 
 func LoadConfig() (*Config, error) {
