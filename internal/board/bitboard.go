@@ -405,10 +405,8 @@ func (b *Board) PseudoCaptureGen() []Move {
 		attacks = KnightAttacks[from] & b.Occupancy[b.Side^1]
 		for attacks > 0 {
 			to = attacks.PopLS1B()
-			move = Move(to|from<<6) | (3+offset)<<12
-			move |= IS_CAPTURE
+			move = Move(to|from<<6) | (3+offset)<<12 | IS_CAPTURE
 			moves = append(moves, move)
-
 		}
 	}
 
@@ -418,11 +416,8 @@ func (b *Board) PseudoCaptureGen() []Move {
 		attacks = GetBishopAttacks(from, b.Occupancy[BOTH]) & b.Occupancy[b.Side^1]
 		for attacks > 0 {
 			to = attacks.PopLS1B()
-			move = Move(to|from<<6) | (2+offset)<<12
-			move |= IS_CAPTURE
-
+			move = Move(to|from<<6) | (2+offset)<<12 | IS_CAPTURE
 			moves = append(moves, move)
-
 		}
 	}
 
@@ -432,10 +427,8 @@ func (b *Board) PseudoCaptureGen() []Move {
 		attacks = GetRookAttacks(from, b.Occupancy[BOTH]) & b.Occupancy[b.Side^1]
 		for attacks > 0 {
 			to = attacks.PopLS1B()
-			move = Move(to|from<<6) | (4+offset)<<12
-			move |= IS_CAPTURE
+			move = Move(to|from<<6) | (4+offset)<<12 | IS_CAPTURE
 			moves = append(moves, move)
-
 		}
 	}
 
@@ -445,11 +438,8 @@ func (b *Board) PseudoCaptureGen() []Move {
 		attacks = GetQueenAttacks(from, b.Occupancy[BOTH]) & b.Occupancy[b.Side^1]
 		for attacks > 0 {
 			to = attacks.PopLS1B()
-			move = Move(to|from<<6) | (5+offset)<<12
-			move |= IS_CAPTURE
-
+			move = Move(to|from<<6) | (5+offset)<<12 | IS_CAPTURE
 			moves = append(moves, move)
-
 		}
 	}
 
@@ -457,11 +447,8 @@ func (b *Board) PseudoCaptureGen() []Move {
 	attacks = KingAttacks[king] & b.Occupancy[b.Side^1]
 	for attacks > 0 {
 		to = attacks.PopLS1B()
-		move = Move(to|from<<6) | (6+offset)<<12
-		move |= IS_CAPTURE
-
+		move = Move(to|king<<6) | (6+offset)<<12 | IS_CAPTURE
 		moves = append(moves, move)
-
 	}
 
 	return moves

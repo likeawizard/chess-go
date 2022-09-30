@@ -34,20 +34,16 @@ func pawnEval(b *board.Board, sq board.Square, side int) int {
 	if IsIsolated(b, sq, side) {
 		value += weights.Pawn.Isolated
 	}
-	advancmentValue := weights.Pawn.Advance
 	if IsPassed(b, sq, side) {
-		advancmentValue += weights.Pawn.Passed
+		value += weights.Pawn.Passed
 	}
-
-	value += getCentralPawn(sq)
-
-	value += advancmentValue * getPawnAdvancement(sq, side)
 
 	return value
 }
 
 func queenEval(b *board.Board, sq board.Square, side int) int {
-	return board.GetQueenAttacks(int(sq), b.Occupancy[board.BOTH]).Count() * weights.Moves.Move
+	moves := board.GetQueenAttacks(int(sq), b.Occupancy[board.BOTH])
+	return moves.Count()*weights.Moves.Move + (moves&b.Occupancy[side^1]).Count()*weights.Moves.Move
 }
 
 // TODO: combine all pawn functions in one with multi value return
@@ -73,7 +69,7 @@ func IsPassed(b *board.Board, sq board.Square, side int) bool {
 }
 
 func getPawnAdvancement(c board.Square, side int) int {
-	if side == board.WHITE {
+	if side == board.BLACK {
 		return int(c/8 - 1)
 	} else {
 		return int(6 - c/8)
@@ -92,7 +88,8 @@ func getCentralPawn(sq board.Square) int {
 }
 
 func knightEval(b *board.Board, sq board.Square, side int) int {
-	return board.KnightAttacks[sq].Count() * weights.Moves.Move
+	moves := board.KnightAttacks[sq] & ^b.Occupancy[side]
+	return moves.Count()*weights.Moves.Move + (moves&b.Occupancy[side^1]).Count()*weights.Moves.Capture
 	// switch {
 	// case (sq/8 == 3 || sq/8 == 4) && (sq%8 == 3 || sq%8 == 4):
 	// 	return weights.Knight.Center22
@@ -113,7 +110,8 @@ func bishopPairEval(b *board.Board, side int) int {
 }
 
 func bishopEval(b *board.Board, sq board.Square, side int) int {
-	return bishopPairEval(b, side) + board.GetBishopAttacks(int(sq), b.Occupancy[board.BOTH]).Count()*weights.Moves.Move +
+	moves := board.GetBishopAttacks(int(sq), b.Occupancy[board.BOTH])
+	return bishopPairEval(b, side) + moves.Count()*weights.Moves.Move + (moves&b.Occupancy[side^1]).Count()*weights.Moves.Capture +
 		(board.SquareBitboards[sq]&board.MajorDiag).Count()*weights.Bishop.MajorDiag +
 		(board.SquareBitboards[sq]&board.MinorDiag).Count()*weights.Bishop.MinorDiag
 }
@@ -121,7 +119,7 @@ func bishopEval(b *board.Board, sq board.Square, side int) int {
 func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 	e.Stats.evals++
 	var eval, pieceEval int = 0, 0
-	phase := getGamePhase(b)
+	phase := GetGamePhase(b)
 
 	// TODO: ensure no move gen is dependent on b.IsWhite internally
 	var side = -1
@@ -134,7 +132,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 				piece := pieces.PopLS1B()
 				pieceEval = PieceWeights[pieceType]
 				// Tapered eval - more bias towards PST in the opening and more bias to individual eval functions towards the endgame
-				pieceEval += (PST[color][pieceType][piece]*(256-phase) + (PiecePawnBonus[pieceType][numPawns])*phase) / 256
+				pieceEval += (PST[0][color][pieceType][piece]*(256-phase) + (PST[1][color][pieceType][piece]+PiecePawnBonus[pieceType][numPawns])*phase) / 256
 				pieceEval += pieceEvals[pieceType](b, board.Square(piece), color)
 				// moves := b.GetMovesForPiece(board.Square(piece), pieceType, 0, 0)
 				// pieceEval += + len(moves)*weights.Moves.Move
@@ -148,7 +146,7 @@ func (e *EvalEngine) GetEvaluation(b *board.Board) int {
 
 // Determine the game phase as a sliding factor between opening and endgame
 // https://www.chessprogramming.org/Tapered_Eval#Implementation_example
-func getGamePhase(b *board.Board) (phase int) {
+func GetGamePhase(b *board.Board) (phase int) {
 	phase = 24
 
 	for color := board.WHITE; color <= board.BLACK; color++ {
@@ -197,7 +195,7 @@ func getKingActivity(b *board.Board, king board.Square, side int) (kingActivity 
 }
 
 func kingEval(b *board.Board, king board.Square, side int) int {
-	phase := getGamePhase(b)
+	phase := GetGamePhase(b)
 	return (getKingSafety(b, king, side)*(256-phase) + getKingActivity(b, king, side)*phase) / 256
 
 }
@@ -205,7 +203,8 @@ func kingEval(b *board.Board, king board.Square, side int) int {
 // Evaluation for rooks - connected & (semi)open files
 // TODO: stub
 func rookEval(b *board.Board, sq board.Square, side int) (rookScore int) {
-	rookScore = board.GetRookAttacks(int(sq), b.Occupancy[board.BOTH]).Count() * weights.Moves.Move
+	moves := board.GetRookAttacks(int(sq), b.Occupancy[board.BOTH])
+	rookScore = moves.Count()*weights.Moves.Move + (moves&b.Occupancy[side^1]).Count()*weights.Moves.Capture
 	return
 	// offset := uint8(6)
 	// if side == board.WHITE {
