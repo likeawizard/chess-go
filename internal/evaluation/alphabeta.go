@@ -49,7 +49,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 
 		all := e.Board.PseudoMoveGen()
 		legalMoves := 0
-		e.Board.OrderMoves(pvMove, &all)
+		e.OrderMoves(pvMove, &all)
 
 		var value int
 
@@ -120,7 +120,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		legalMoves := 0
 
 		pvm := board.Move(0)
-		e.Board.OrderMoves(pvm, &all)
+		e.OrderMoves(pvm, &all)
 
 		var value int
 

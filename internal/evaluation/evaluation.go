@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"sort"
 
 	"github.com/likeawizard/chess-go/internal/board"
 	"github.com/likeawizard/chess-go/internal/config"
@@ -39,6 +40,39 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 	}
 
 	return best, ponder
+}
+
+func (e *EvalEngine) OrderMoves(pv board.Move, moves *[]board.Move) {
+	sort.Slice(*moves, func(i int, j int) bool {
+		return (*moves)[i] == pv || e.getMoveValue((*moves)[i]) > e.getMoveValue((*moves)[j])
+	})
+}
+
+// Estimate the potential strength of the move for move ordering
+func (e *EvalEngine) getMoveValue(move board.Move) (value int) {
+
+	if move.IsCapture() {
+		attacker := PieceWeights[(move.Piece()-1)%6]
+		_, _, victim := e.Board.PieceAtSquare(move.To())
+		value = PieceWeights[victim] - attacker/2
+	}
+
+	// TODO: implement SEE or MVV-LVA ordering
+	// Calculate the relative value of exchange
+	// from, to := move.FromTo()
+	// us, them := PieceWeights[b.Coords[from]], PieceWeights[b.Coords[to]]
+	// if them == 0 {
+	// 	value += 0
+	// } else {
+	// 	value += dir * (0.5*us + them)
+	// }
+
+	// Prioritize promotions
+	if move.Promotion() != 0 {
+		value += 3
+	}
+
+	return
 }
 
 // TODO: try branchless optimization
