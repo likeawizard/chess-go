@@ -27,6 +27,12 @@ func traverse(b *Board, depth int) int {
 				umove()
 				continue
 			}
+			if b.Hash != b.SeedHash() {
+				fmt.Println(b.ExportFEN())
+				umove()
+				fmt.Println(b.ExportFEN(), all[i])
+				panic(1)
+			}
 			num += traverse(b, depth-1)
 			umove()
 		}
