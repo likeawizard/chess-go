@@ -4,7 +4,7 @@ init:
 engine:
   algorithm: "minmax" # minmax|alphabeta(default)
   maxDepth: 4
-  enableTT: true
+  ttSize: 256
   debug: false
   maxGoroutines: 20
 

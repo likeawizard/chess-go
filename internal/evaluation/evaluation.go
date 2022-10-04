@@ -13,7 +13,7 @@ type EvalEngine struct {
 	Board       *board.Board
 	SearchDepth int
 	EnableTT    bool
-	TTable      map[uint64]ttEntry
+	TTable      *TTable
 }
 
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
@@ -21,7 +21,7 @@ func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
 		Board:       b,
 		SearchDepth: c.Engine.MaxDepth,
 		EnableTT:    c.Engine.EnableTT,
-		TTable:      make(map[uint64]ttEntry),
+		TTable:      NewTTable(c.Engine.TTSize),
 	}, nil
 }
 

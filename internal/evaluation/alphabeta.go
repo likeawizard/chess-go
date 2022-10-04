@@ -21,27 +21,29 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 
 		e.Stats.nodes++
 
-		// alphaTemp := alpha
-		// if e.EnableTT {
-
-		// 	if entry, ok := e.TTable[e.Board.Hash]; ok && entry.depth >= depth {
-		// 		switch entry.ttType {
-		// 		case TT_EXACT:
-		// 			return entry.eval
-		// 		case TT_LOWER:
-		// 			alpha = Max(alpha, entry.eval)
-		// 		case TT_UPPER:
-		// 			beta = Min(beta, entry.eval)
-		// 		}
-
-		// 		if alpha >= beta {
-		// 			*line = []board.Move{entry.move}
-		// 			return entry.eval
-		// 		}
-		// 	}
-		// }
-
+		alphaTemp := alpha
 		var pvMove board.Move
+
+		if entry, ok := e.TTable.Probe(e.Board.Hash); ok && entry.depth >= depth {
+			switch entry.ttType {
+			case TT_EXACT:
+				*line = []board.Move{entry.move}
+				return entry.eval
+			case TT_LOWER:
+				alpha = Max(alpha, entry.eval)
+			case TT_UPPER:
+				beta = Min(beta, entry.eval)
+			}
+
+			pvMove = entry.move
+
+			if alpha >= beta {
+				*line = []board.Move{entry.move}
+				return entry.eval
+			}
+		}
+
+		// var pvMove board.Move
 		if len(pvMoves) != 0 {
 			pvMove = pvMoves[0]
 			pvMoves = pvMoves[1:]
@@ -71,21 +73,20 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 				*line = append(*line, pv...)
 			}
 
+			var entryType ttType
+			if value <= alphaTemp {
+				entryType = TT_UPPER
+			} else if value >= beta {
+				entryType = TT_LOWER
+			} else {
+				entryType = TT_EXACT
+			}
+			e.TTable.Store(e.Board.Hash, entryType, value, depth, all[i])
+
 			if alpha >= beta {
 				break
 			}
 
-			// if e.EnableTT {
-			// 	tt := ttEntry{eval: value, depth: depth, move: all[i]}
-			// 	if value <= alphaTemp {
-			// 		tt.ttType = TT_UPPER
-			// 	} else if value >= beta {
-			// 		tt.ttType = TT_LOWER
-			// 	} else {
-			// 		tt.ttType = TT_EXACT
-			// 	}
-			// 	e.TTable[e.Board.Hash] = tt
-			// }
 		}
 
 		if legalMoves == 0 {
@@ -173,7 +174,7 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 			// e.TTable = make(map[uint64]ttEntry)
 			e.Stats.Start()
 			eval = e.negamax(ctx, &line, line, d, alpha, beta, color)
-
+			e.TTable.Clear()
 			select {
 			case <-ctx.Done():
 				// Do nothing as alpha-beta was canceled and results are unreliable

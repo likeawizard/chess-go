@@ -756,30 +756,45 @@ func (b *Board) GetUnmake() func() {
 // Make a legal move in position and update board state - castling rights, en passant, move count, side to move etc. Returns a function to take back the move made.
 func (b *Board) MakeMove(move Move) func() {
 	umove := b.GetUnmake()
-	direction := 8
-	if b.Side == WHITE {
-		direction = -8
-	}
 	if move.IsCapture() || move.Piece() == 1 {
 		b.HalfMoveCounter = 0
 	} else {
 		b.HalfMoveCounter++
 	}
 
-	b.EnPassantTarget = -1
+	if b.EnPassantTarget > 0 {
+		b.ZobristEnPassant(b.EnPassantTarget)
+	}
+
 	bitboard := b.GetBitBoard(move.Piece(), move)
-	bitboard.Set(int(move.To()))
-	bitboard.Clear(int(move.From()))
+
 	switch {
 	case move.IsEnPassant():
+		b.ZobristEPCapture(move)
+		b.EnPassantTarget = -1
+		direction := 8
+		if b.Side == WHITE {
+			direction = -8
+		}
 		b.RemoveCaptured(int(move.To()) - direction)
 	case move.IsCapture():
+		b.EnPassantTarget = -1
+		b.ZobristCapture(move)
 		b.RemoveCaptured(int(move.To()))
 	case move.IsCastling():
+		b.EnPassantTarget = -1
+		b.ZobristSimpleMove(move)
 		b.CompleteCastling(move)
 	case move.IsDouble():
+		b.ZobristSimpleMove(move)
 		b.EnPassantTarget = (move.To() + move.From()) / 2
+		b.ZobristEnPassant(b.EnPassantTarget)
+	default:
+		b.EnPassantTarget = -1
+		b.ZobristSimpleMove(move)
 	}
+	bitboard.Set(int(move.To()))
+	bitboard.Clear(int(move.From()))
 
 	b.Promote(move)
 
@@ -795,6 +810,8 @@ func (b *Board) MakeMove(move Move) func() {
 	if b.Side == BLACK {
 		b.FullMoveCounter++
 	}
+
+	b.ZobristSideToMove()
 	b.Side ^= 1
 	return umove
 }
@@ -856,6 +873,7 @@ func (b *Board) CompleteCastling(move Move) {
 	case BCastleQueen:
 		rookMove = BCastleQueenRook
 	}
+	b.ZobristSimpleMove(rookMove)
 	bitboard.Set(int(rookMove.To()))
 	bitboard.Clear(int(rookMove.From()))
 }
@@ -897,6 +915,7 @@ func (b *Board) Promote(move Move) {
 
 	pawnBitBoard.Clear(int(move.To()))
 	promotionBitBoard.Set(int(move.To()))
+	b.ZobristPromotion(move)
 }
 
 // Prune Illegal moves by making the move and verifying that the resulting position doesn't leave own king in check

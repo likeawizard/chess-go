@@ -47,5 +47,5 @@ func (lc *LichessConnector) acceptableTimeControl(timeControl string) bool {
 }
 
 func (lc *LichessConnector) acceptRated(rated bool) bool {
-	return lc.Config.Lichess.ChallengePolicy.Rated && rated
+	return !rated || lc.Config.Lichess.ChallengePolicy.Rated && rated
 }

@@ -25,10 +25,11 @@ func (es *EvalStats) Clear() {
 
 func (es *EvalStats) String() string {
 	total := es.nodes + es.qNodes
-	if total == 0 {
+	duration := int(time.Since(es.start).Microseconds())
+	if total == 0 || duration == 0 {
 		return "-"
 	}
-	nps := (1000000 * total) / int(time.Since(es.start).Microseconds())
+	nps := (1000000 * total) / duration
 	return fmt.Sprintf("%snps, total: %s (%s %s), QN: %d%%, evals: %d%%", printNodeCount(nps), printNodeCount(total), printNodeCount(es.nodes), printNodeCount(es.qNodes), (100*es.qNodes)/total, 100*es.evals/total)
 }
 

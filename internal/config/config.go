@@ -23,6 +23,7 @@ type Engine struct {
 	Algorithm     string `yaml:"algorithm"`
 	MaxDepth      int    `yaml:"maxDepth"`
 	EnableTT      bool   `yaml:"enableTT"`
+	TTSize        int    `yaml:"ttSize"`
 	MaxGoRoutines int    `yaml:"maxGoRoutines"`
 	Debug         bool   `yaml:"debug"`
 }

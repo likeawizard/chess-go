@@ -47,12 +47,18 @@ func (b *Board) SeedHash() uint64 {
 		}
 	}
 
-	for _, cr := range castlingKeys {
-		hash ^= cr
+	for right, cr := range castlingKeys {
+		if b.CastlingRights&right != 0 {
+			hash ^= cr
+		}
 	}
 
 	if b.EnPassantTarget != -1 {
 		hash ^= enPassantKeys[b.EnPassantTarget]
+	}
+
+	if b.Side == BLACK {
+		hash ^= swapSide
 	}
 
 	return hash
@@ -62,16 +68,29 @@ func (b *Board) SeedHash() uint64 {
 // TODO: optimize - remove use of expensive PieceAtSquare function
 func (b *Board) ZobristSimpleMove(move Move) {
 	from, to := move.From(), move.To()
-	_, color, piece := b.PieceAtSquare(from)
+	piece := (move.Piece() - 1) % 6
+	b.Hash ^= pieceKeys[b.Side][piece][to]
+	b.Hash ^= pieceKeys[b.Side][piece][from]
+}
 
-	// unset target piece at destination and set new
-	if move.IsCapture() {
-		_, _, capturedPiece := b.PieceAtSquare(to)
-		b.Hash ^= pieceKeys[color^1][capturedPiece][to]
+func (b *Board) ZobristCapture(move Move) {
+	from, to := move.From(), move.To()
+	piece := (move.Piece() - 1) % 6
+	_, _, capturedPiece := b.PieceAtSquare(to)
+	b.Hash ^= pieceKeys[b.Side^1][capturedPiece][to]
+	b.Hash ^= pieceKeys[b.Side][piece][to]
+	b.Hash ^= pieceKeys[b.Side][piece][from]
+}
+
+func (b *Board) ZobristEPCapture(move Move) {
+	from, to := move.From(), move.To()
+	direction := Square(8)
+	if b.Side == WHITE {
+		direction = -8
 	}
-
-	b.Hash ^= pieceKeys[color][piece][to]
-	b.Hash ^= pieceKeys[color][piece][from]
+	b.Hash ^= pieceKeys[b.Side^1][PAWNS][to-direction]
+	b.Hash ^= pieceKeys[b.Side][PAWNS][to]
+	b.Hash ^= pieceKeys[b.Side][PAWNS][from]
 }
 
 // Update Zobirst hash with flipping side to move
@@ -106,26 +125,20 @@ func (b *Board) ZobristCastling(right CastlingRights) {
 func (b *Board) ZobristPromotion(move Move) {
 	var promotion int
 	switch move.Promotion() {
-	case 'q':
+	case PROMO_QUEEN:
 		promotion = QUEENS
-	case 'n':
+	case PROMO_KNIGHT:
 		promotion = KNIGHTS
-	case 'r':
+	case PROMO_ROOK:
 		promotion = ROOKS
-	case 'b':
+	case PROMO_BISHOP:
 		promotion = BISHOPS
 	}
-	from, to := move.From(), move.To()
-	_, color, _ := b.PieceAtSquare(from)
-
-	if move.IsCapture() {
-		_, _, capturedPiece := b.PieceAtSquare(to)
-		b.Hash ^= pieceKeys[color^1][capturedPiece][to]
-	}
+	to := move.To()
 
 	// set destination with newly promoted piece
-	b.Hash ^= pieceKeys[color][promotion][to]
-	b.Hash ^= pieceKeys[color][PAWNS][from]
+	b.Hash ^= pieceKeys[b.Side][promotion][to]
+	b.Hash ^= pieceKeys[b.Side][PAWNS][to]
 }
 
 // Update Zobrist hash with En Passant square
