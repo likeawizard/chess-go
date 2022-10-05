@@ -23,5 +23,10 @@ lichess:
       - standard
     rated: true
 
+book:
+  enable: true
+  method: "weighted" # weighted | best
+  path: "./book.bin"
+
 render:
   mode: "simple"
