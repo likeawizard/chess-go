@@ -11,6 +11,7 @@ const CONFIG_PATH = "config.yml"
 type Config struct {
 	Init    Init    `yaml:"init"`
 	Engine  Engine  `yaml:"engine"`
+	Book    Book    `yaml:"book"`
 	Render  Render  `yaml:"render"`
 	Lichess Lichess `yaml:"lichess"`
 }
@@ -26,6 +27,12 @@ type Engine struct {
 	TTSize        int    `yaml:"ttSize"`
 	MaxGoRoutines int    `yaml:"maxGoRoutines"`
 	Debug         bool   `yaml:"debug"`
+}
+
+type Book struct {
+	Enable bool `yaml:"enable"`
+	Method string
+	Path   string `yaml:"path"`
 }
 
 type Render struct {

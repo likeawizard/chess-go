@@ -1,5 +1,7 @@
 package lichess
 
+import "fmt"
+
 func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
 	if !lc.acceptingChallenges() {
 		return false, "generic"
@@ -10,7 +12,7 @@ func (lc *LichessConnector) ShouldAccept(ch Challenge) (bool, string) {
 	if !lc.acceptableVariant(ch.Variant.Key) {
 		return false, "variant"
 	}
-	if !lc.acceptableTimeControl(ch.TimeControl.Type) {
+	if !lc.acceptableTimeControl(ch.Speed) {
 		return false, "timeControl"
 	}
 	if !lc.acceptRated(ch.Rated) {
@@ -43,6 +45,7 @@ func (lc *LichessConnector) acceptableTimeControl(timeControl string) bool {
 			return true
 		}
 	}
+	fmt.Println(timeControl)
 	return false
 }
 

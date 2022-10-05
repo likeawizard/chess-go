@@ -2,26 +2,39 @@ package eval
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/likeawizard/chess-go/internal/board"
+	"github.com/likeawizard/chess-go/internal/book"
 	"github.com/likeawizard/chess-go/internal/config"
 )
 
+type PickBookMove func(*board.Board) board.Move
+
 type EvalEngine struct {
-	Stats       EvalStats
-	Board       *board.Board
-	SearchDepth int
-	EnableTT    bool
-	TTable      *TTable
+	Stats        EvalStats
+	Board        *board.Board
+	EnableBook   bool
+	PickBookMove PickBookMove
+	SearchDepth  int
+	TTable       *TTable
 }
 
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
+	var bookMethod PickBookMove = book.GetWeighted
+	switch c.Book.Method {
+	case "best":
+		bookMethod = book.GetBest
+	case "weighted":
+		bookMethod = book.GetWeighted
+	}
 	return &EvalEngine{
-		Board:       b,
-		SearchDepth: c.Engine.MaxDepth,
-		EnableTT:    c.Engine.EnableTT,
-		TTable:      NewTTable(c.Engine.TTSize),
+		Board:        b,
+		EnableBook:   c.Book.Enable,
+		PickBookMove: bookMethod,
+		SearchDepth:  c.Engine.MaxDepth,
+		TTable:       NewTTable(c.Engine.TTSize),
 	}, nil
 }
 
@@ -32,6 +45,11 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 	all := e.Board.MoveGen()
 	if len(all) == 1 {
 		best = all[0]
+	} else if e.EnableBook && book.InBook(e.Board) {
+		book.PrintBookMoves(e.Board)
+		move := e.PickBookMove(e.Board)
+		fmt.Println("Picking Book move: ", move)
+		return move, 0
 	} else {
 		best, ponder, ok = e.IDSearch(ctx, e.SearchDepth, pv, silent)
 		if !ok {

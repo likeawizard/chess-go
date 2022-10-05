@@ -100,5 +100,5 @@ func (tm *TimeManagment) StartStopWatch() {
 
 func (tm *TimeManagment) MeasureLag() {
 	// Limit lag to 500 in case of unexpected lag spike
-	tm.Lag = min(int(time.Since(tm.LagStopWatch).Milliseconds()), 500)
+	tm.Lag = int(time.Since(tm.LagStopWatch).Milliseconds())
 }
