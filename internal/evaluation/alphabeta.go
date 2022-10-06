@@ -15,8 +15,10 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		// Meaningless return. Should never trust the result after ctx is expired
 		return 0
 	default:
-		if depth == 0 {
+		if depth == 0 && !e.Board.IsChecked(e.Board.Side) {
 			return e.quiescence(ctx, alpha, beta, side)
+		} else if depth == 0 {
+			depth++
 		}
 
 		e.Stats.nodes++
@@ -116,12 +118,16 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		if eval > alpha {
 			alpha = eval
 		}
+		var all []board.Move
+		if e.Board.IsChecked(e.Board.Side) {
+			all = e.Board.PseudoMoveGen()
+		} else {
+			all = e.Board.PseudoCaptureGen()
+		}
 
-		all := e.Board.PseudoCaptureGen()
 		legalMoves := 0
 
-		pvm := board.Move(0)
-		e.OrderMoves(pvm, &all)
+		e.OrderMoves(0, &all)
 
 		var value int
 
