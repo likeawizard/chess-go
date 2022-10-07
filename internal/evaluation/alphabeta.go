@@ -9,7 +9,7 @@ import (
 	"github.com/likeawizard/chess-go/internal/board"
 )
 
-func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []board.Move, depth int, alpha, beta int, side int) int {
+func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth, ply int, alpha, beta int, side int) int {
 	select {
 	case <-ctx.Done():
 		// Meaningless return. Should never trust the result after ctx is expired
@@ -26,7 +26,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 		alphaTemp := alpha
 		var pvMove board.Move
 
-		if entry, ok := e.TTable.Probe(e.Board.Hash); ok && entry.depth >= depth {
+		if entry, ok := e.TTable.Probe(e.Board.Hash); ok && entry.depth >= depth && ply > 0 {
 			switch entry.ttType {
 			case TT_EXACT:
 				*line = []board.Move{entry.move}
@@ -45,19 +45,11 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 			}
 		}
 
-		// var pvMove board.Move
-		if len(pvMoves) != 0 {
-			pvMove = pvMoves[0]
-			pvMoves = pvMoves[1:]
-		}
-
 		all := e.Board.PseudoMoveGen()
 		legalMoves := 0
 		e.OrderMoves(pvMove, &all)
 
-		var value int
-
-		value = -math.MaxInt
+		value := -math.MaxInt
 		pv := []board.Move{}
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MakeMove(all[i])
@@ -66,7 +58,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 				continue
 			}
 			legalMoves++
-			value = Max(value, -e.negamax(ctx, &pv, pvMoves, depth-1, -beta, -alpha, -side))
+			value = Max(value, -e.negamax(ctx, &pv, depth-1, ply+1, -beta, -alpha, -side))
 			umove()
 
 			if value > alpha {
@@ -74,16 +66,6 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 				*line = []board.Move{all[i]}
 				*line = append(*line, pv...)
 			}
-
-			var entryType ttType
-			if value <= alphaTemp {
-				entryType = TT_UPPER
-			} else if value >= beta {
-				entryType = TT_LOWER
-			} else {
-				entryType = TT_EXACT
-			}
-			e.TTable.Store(e.Board.Hash, entryType, value, depth, all[i])
 
 			if alpha >= beta {
 				break
@@ -93,10 +75,22 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, pvMoves []
 
 		if legalMoves == 0 {
 			if e.Board.IsChecked(e.Board.Side) {
-				return -math.MaxInt
+				value = -math.MaxInt
 			} else {
-				return 0
+				value = 0
 			}
+		}
+
+		if len(*line) > 0 {
+			var entryType ttType
+			if value <= alphaTemp {
+				entryType = TT_UPPER
+			} else if value >= beta {
+				entryType = TT_LOWER
+			} else {
+				entryType = TT_EXACT
+			}
+			e.TTable.Store(e.Board.Hash, entryType, value, depth, (*line)[0])
 		}
 		return value
 	}
@@ -119,19 +113,17 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 			alpha = eval
 		}
 		var all []board.Move
-		if e.Board.IsChecked(e.Board.Side) {
+		inCheck := e.Board.IsChecked(e.Board.Side)
+		if inCheck {
 			all = e.Board.PseudoMoveGen()
 		} else {
 			all = e.Board.PseudoCaptureGen()
 		}
 
 		legalMoves := 0
-
 		e.OrderMoves(0, &all)
 
-		var value int
-
-		value = -math.MaxInt
+		value := -math.MaxInt
 		for i := 0; i < len(all); i++ {
 			umove := e.Board.MakeMove(all[i])
 			if e.Board.IsChecked(e.Board.Side ^ 1) {
@@ -173,14 +165,9 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 				return
 			}
 
-			if len(*pv) > len(line) {
-				line = *pv
-			}
-
-			// e.TTable = make(map[uint64]ttEntry)
 			e.Stats.Start()
-			eval = e.negamax(ctx, &line, line, d, alpha, beta, color)
-			e.TTable.Clear()
+			eval = e.negamax(ctx, &line, d, 0, alpha, beta, color)
+
 			select {
 			case <-ctx.Done():
 				// Do nothing as alpha-beta was canceled and results are unreliable
@@ -188,12 +175,6 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 				wg.Done()
 				return
 			default:
-				// Debug purposes. No TTHit can happen under 4ply.
-				// if depth < 4 && TTHits > 0 {
-				// 	fmt.Println("TTable error - transposition in less than 4ply")
-				// 	panic(1)
-				// }
-
 				if len(line) == 0 {
 					done, ok = true, false
 					break
@@ -215,7 +196,6 @@ func (e *EvalEngine) IDSearch(ctx context.Context, depth int, pv *[]board.Move, 
 						evalStr = fmt.Sprintf("%2.2f", float32(color*eval)/100)
 					}
 
-					// fmt.Printf("Depth: %d (%s) Move: %v (TT hit: %d (Rate %2.2f%%) TT size: %d)\n", d, evalStr, line, TTHits, 100*float64(TTHits)/float64(len(e.TTable)), len(e.TTable))
 					fmt.Printf("Depth: %d (%s) Move: %v (%s)\n", d, evalStr, line, e.Stats.String())
 				}
 
