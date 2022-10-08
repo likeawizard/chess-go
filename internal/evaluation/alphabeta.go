@@ -47,7 +47,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth, ply
 
 		all := e.Board.PseudoMoveGen()
 		legalMoves := 0
-		e.OrderMoves(pvMove, &all)
+		e.OrderMoves(pvMove, &all, ply)
 
 		value := -math.MaxInt
 		pv := []board.Move{}
@@ -68,6 +68,7 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth, ply
 			}
 
 			if alpha >= beta {
+				e.AddKillerMove(ply, all[i])
 				break
 			}
 
@@ -121,7 +122,7 @@ func (e *EvalEngine) quiescence(ctx context.Context, alpha, beta int, side int) 
 		}
 
 		legalMoves := 0
-		e.OrderMoves(0, &all)
+		e.OrderMoves(0, &all, 0)
 
 		value := -math.MaxInt
 		for i := 0; i < len(all); i++ {
