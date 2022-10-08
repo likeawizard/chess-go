@@ -17,6 +17,7 @@ type EvalEngine struct {
 	Board        *board.Board
 	EnableBook   bool
 	PickBookMove PickBookMove
+	KillerMoves  [100][2]board.Move
 	SearchDepth  int
 	TTable       *TTable
 }
@@ -60,9 +61,25 @@ func (e *EvalEngine) GetMove(ctx context.Context, pv *[]board.Move, silent bool)
 	return best, ponder
 }
 
-func (e *EvalEngine) OrderMoves(pv board.Move, moves *[]board.Move) {
+func (e *EvalEngine) AddKillerMove(ply int, move board.Move) {
+	if !move.IsCapture() {
+		e.KillerMoves[ply][0] = e.KillerMoves[ply][1]
+		e.KillerMoves[ply][1] = move
+	}
+}
+
+func (e *EvalEngine) AgeKillers() {
+	for i := 1; i < len(e.KillerMoves); i++ {
+		e.KillerMoves[i-1] = e.KillerMoves[i]
+	}
+}
+
+func (e *EvalEngine) OrderMoves(pv board.Move, moves *[]board.Move, ply int) {
 	sort.Slice(*moves, func(i int, j int) bool {
-		return (*moves)[i] == pv || e.getMoveValue((*moves)[i]) > e.getMoveValue((*moves)[j])
+		return (*moves)[i] == pv ||
+			(*moves)[i] == e.KillerMoves[ply][0] ||
+			(*moves)[i] == e.KillerMoves[ply][1] ||
+			e.getMoveValue((*moves)[i]) > e.getMoveValue((*moves)[j])
 	})
 }
 
