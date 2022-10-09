@@ -13,13 +13,15 @@ import (
 type PickBookMove func(*board.Board) board.Move
 
 type EvalEngine struct {
-	Stats        EvalStats
-	Board        *board.Board
-	EnableBook   bool
-	PickBookMove PickBookMove
-	KillerMoves  [100][2]board.Move
-	SearchDepth  int
-	TTable       *TTable
+	Stats          EvalStats
+	Board          *board.Board
+	EnableBook     bool
+	PickBookMove   PickBookMove
+	KillerMoves    [100][2]board.Move
+	GameHistoryPly int
+	GameHistory    []uint64
+	SearchDepth    int
+	TTable         *TTable
 }
 
 func NewEvalEngine(b *board.Board, c *config.Config) (*EvalEngine, error) {
@@ -72,6 +74,26 @@ func (e *EvalEngine) AgeKillers() {
 	for i := 1; i < len(e.KillerMoves); i++ {
 		e.KillerMoves[i-1] = e.KillerMoves[i]
 	}
+}
+
+func (e *EvalEngine) IncrementHistory() {
+	e.GameHistory[e.GameHistoryPly] = e.Board.Hash
+	e.GameHistoryPly++
+}
+
+func (e *EvalEngine) DecrementHistory() {
+	e.GameHistoryPly--
+}
+
+// Two-fold repetition detection. While the rules of chess require a three-fold repetition a two-fold repetition should logically lead to three-fold repetition assuming best moves were played to repeat the position once they will be played again.
+func (e *EvalEngine) IsDrawByRepetition() bool {
+	for ply := 0; ply < e.GameHistoryPly; ply++ {
+		if e.Board.Hash == e.GameHistory[ply] {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (e *EvalEngine) OrderMoves(pv board.Move, moves *[]board.Move, ply int) {

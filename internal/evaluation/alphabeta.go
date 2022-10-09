@@ -23,6 +23,10 @@ func (e *EvalEngine) negamax(ctx context.Context, line *[]board.Move, depth, ply
 
 		e.Stats.nodes++
 
+		if ply > 0 && e.IsDrawByRepetition() {
+			return 0
+		}
+
 		alphaTemp := alpha
 		var pvMove board.Move
 
